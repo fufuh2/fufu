@@ -1,0 +1,29 @@
+# GitLab CI: same gates as .github/workflows/ci.yml.
+stages: [test]
+
+backend:
+  stage: test
+  image: python:3.12
+  services:
+    - name: postgres:16
+      alias: db
+  variables:
+    POSTGRES_USER: ops
+    POSTGRES_PASSWORD: ops
+    POSTGRES_DB: opsx_test
+    OPSX_TEST_DATABASE_URL: postgresql+psycopg://ops:ops@db:5432/opsx_test
+    OPSX_DATABASE_URL: postgresql+psycopg://ops:ops@db:5432/opsx_test
+    OPSX_JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+    OPSX_INTEGRATION_KEY: ci-only-integration-key-not-used-elsewhere-0123
+    OPSX_REQUIRE_BROWSER: "1"
+  before_script:
+    - cd backend
+    - pip install -r requirements-dev.lock
+    - playwright install --with-deps chromium
+  script:
+    - ruff check .
+    - ruff format --check .
+    - mypy app
+    - alembic upgrade head && alembic check && alembic downgrade base
+    - pytest -o addopts="" -p no:warnings -rs
+    - pip install pip-audit && pip-audit -r requirements.lock

@@ -10,6 +10,15 @@ class Settings:
     env: str
 
 
+def normalize_database_url(url: str) -> str:
+    """Hosting providers (e.g. Render) hand out postgres:// or postgresql:// URLs; SQLAlchemy
+    needs the driver named explicitly."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
 def load_settings() -> Settings:
     env = os.environ.get("OPSX_ENV", "production")
     secret = os.environ.get("OPSX_JWT_SECRET", "")
@@ -21,7 +30,7 @@ def load_settings() -> Settings:
         # No built-in default: a forgotten variable must not silently use dev credentials.
         raise RuntimeError("OPSX_DATABASE_URL must be set")
     return Settings(
-        database_url=database_url,
+        database_url=normalize_database_url(database_url),
         jwt_secret=secret,
         jwt_ttl_minutes=int(os.environ.get("OPSX_JWT_TTL_MINUTES", "30")),
         env=env,

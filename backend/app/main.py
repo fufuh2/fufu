@@ -88,6 +88,9 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
+        if settings.env == "production":
+            # Production is only served over HTTPS (TLS terminates at the hosting proxy).
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         path = request.url.path
         if path.startswith("/ui"):
             response.headers["Content-Security-Policy"] = UI_CSP

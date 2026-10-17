@@ -106,3 +106,15 @@ class TestPermissions:
         }
         for role in (Role.AUDITOR, Role.FINANCE):
             assert not (ROLE_PERMISSIONS[role] & writes)
+
+
+class TestConfig:
+    def test_database_url_normalization(self) -> None:
+        from app.config import normalize_database_url as n
+
+        assert n("postgres://u:p@h:5432/d") == "postgresql+psycopg://u:p@h:5432/d"
+        assert (
+            n("postgresql://u:p@h/d?sslmode=require")
+            == "postgresql+psycopg://u:p@h/d?sslmode=require"
+        )
+        assert n("postgresql+psycopg://u@h/d") == "postgresql+psycopg://u@h/d"

@@ -408,3 +408,16 @@ def test_backdated_sale_before_count_does_not_double_consume(client, session: Se
     order_id = res.json()["id"]
     assert api.post(f"/orders/{order_id}/cancel", {"reason": "void"}).status_code == 200
     assert stock_of(api, b, k["bun"]) == 29  # cancel reverses consumption and offset together
+
+
+def test_hsts_only_in_production(monkeypatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    monkeypatch.setenv("OPSX_ENV", "production")
+    assert (
+        "max-age" in TestClient(create_app()).get("/healthz").headers["strict-transport-security"]
+    )
+    monkeypatch.setenv("OPSX_ENV", "development")
+    assert "strict-transport-security" not in TestClient(create_app()).get("/healthz").headers
