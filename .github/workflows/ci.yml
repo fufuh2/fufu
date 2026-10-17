@@ -1,0 +1,37 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ops
+          POSTGRES_PASSWORD: ops
+          POSTGRES_DB: opsx_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ops" --health-interval 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      OPSX_TEST_DATABASE_URL: postgresql+psycopg://ops:ops@localhost:5432/opsx_test
+      OPSX_DATABASE_URL: postgresql+psycopg://ops:ops@localhost:5432/opsx_test
+      OPSX_JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.lock
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy app
+      - name: Migrations match models
+        run: alembic upgrade head && alembic check && alembic downgrade base
+      - run: pytest -o addopts="" -p no:warnings
+      - run: pip install pip-audit && pip-audit -r requirements.lock
