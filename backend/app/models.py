@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -299,6 +300,15 @@ class AuditEvent(Base):
     """Append-only audit trail. UPDATE/DELETE are rejected by a database trigger."""
 
     __tablename__ = "audit_events"
+    __table_args__ = (
+        # Serves the login failure limit (services/admin.authenticate).
+        Index(
+            "ix_audit_login_failed",
+            text("(data ->> 'email')"),
+            "at",
+            postgresql_where=text("action = 'auth.login_failed'"),
+        ),
+    )
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id"), index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

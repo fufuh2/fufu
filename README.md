@@ -4,6 +4,7 @@
 → stok → fire → sayım → fark → maliyet/marj zinciri, denetim izi ve tenant izolasyonu ile.
 
 Neyin yapıldığı, neyin yapılmadığı ve kanıtları: **[docs/STATUS.md](docs/STATUS.md)**.
+Son denetim ve canlıya hazırlık kararı: **[docs/audit/RELEASE_READINESS.md](docs/audit/RELEASE_READINESS.md)**.
 
 ## Yapı
 
@@ -29,6 +30,7 @@ pip install -r requirements-dev.lock
 
 export OPSX_DATABASE_URL=postgresql+psycopg://ops:ops@localhost:5432/opsx
 export OPSX_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+export OPSX_ENV=development   # /docs yalnızca development'ta açık; varsayılan production
 alembic upgrade head
 OPSX_OWNER_PASSWORD='en-az-12-karakter' python -m app.cli create-tenant --name "Demo" --owner-email owner@example.com
 uvicorn app.main:create_app --factory --reload   # http://127.0.0.1:8000/docs
@@ -47,11 +49,19 @@ export OPSX_TEST_DATABASE_URL=postgresql+psycopg://ops:ops@localhost:5432/opsx_t
 cd backend && pytest && ruff check . && mypy app && alembic check
 ```
 
+`OPSX_DATABASE_URL` ve `OPSX_JWT_SECRET` zorunludur; varsayılan değerleri yoktur.
+
+Canlı sunucuya karşı denetim akışı (yalnızca adı `audit` içeren bir veritabanında çalışır):
+
+```bash
+python scripts/audit_e2e.py http://localhost:8000 $OPSX_DATABASE_URL owner@example.com '<parola>'
+```
+
 ## API özeti (`/api/v1`)
 
 | Metot | Yol | İzin |
 |---|---|---|
-| POST | `/auth/login` | — |
+| POST | `/auth/login` (hesap başına 15 dk'da 5 hatalı denemeden sonra 429) | — |
 | POST/GET | `/branches` | `branch.manage` / herkes (kapsamına göre) |
 | POST | `/users` | `user.manage` |
 | POST/GET | `/items`, `/products` | `catalog.manage` |

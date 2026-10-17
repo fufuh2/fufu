@@ -29,3 +29,13 @@ class Invalid(DomainError):
 
 class InsufficientStock(Conflict):
     code = "insufficient_stock"
+
+
+class Unauthorized(DomainError):
+    status_code = 401
+    code = "unauthorized"
+
+
+class TooManyAttempts(DomainError):
+    status_code = 429
+    code = "too_many_attempts"

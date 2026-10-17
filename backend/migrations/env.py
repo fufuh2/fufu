@@ -12,11 +12,12 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
-DEFAULT_URL = "postgresql+psycopg://ops:ops@localhost:5432/opsx"
 
 
 def run_migrations_online() -> None:
-    url = os.environ.get("OPSX_DATABASE_URL", DEFAULT_URL)
+    url = os.environ.get("OPSX_DATABASE_URL")
+    if not url:
+        raise RuntimeError("OPSX_DATABASE_URL must be set")
     engine = create_engine(url)
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)

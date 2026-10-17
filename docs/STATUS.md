@@ -1,5 +1,8 @@
 # Durum Raporu — Faz 1
 
+> **Güncel durum için önce `docs/audit/` okuyun.** 2026-10-17 denetimi bu dosyadaki bazı ifadeleri
+> güncelledi (CI, rate limiting, test sayısı). Aşağıdaki "kanıtlı" tablo geliştirme anına aittir.
+
 Bu dosya neyin yapıldığını, neyin **yapılmadığını** ve her iddianın kanıtını listeler.
 Kanıtı olmayan bir şey "tamam" sayılmaz.
 
@@ -55,8 +58,8 @@ izolasyonlu çalışan bir backend dilimi olarak sınırlandı. Bu zincir, istem
 
 - **Docker / docker-compose**: Bu ortamda Docker daemon yok. `Dockerfile` ve
   `docker-compose.yml` yazıldı ama **hiç çalıştırılmadı**.
-- **GitHub Actions CI**: Workflow yazıldı, GitHub'da **koşmadı**. Yerelde aynı adımlar
-  Python 3.13 ile koştu; CI Python 3.12 kullanıyor (lock dosyaları 3.12 için üretildi).
+- ~~GitHub Actions CI koşmadı~~ — **Yanlıştı.** Push sonrası run 38985361339 (Python 3.12) başarıyla
+  bitti. Denetimde düzeltildi (FND-011).
 - **Rakip analizi**: Bu oturumda web kaynağı taranmadı. `docs/research/COMPETITOR_ANALYSIS.md`
   bunu açıkça belirtir.
 - **Türk iş hukuku / KVKK**: Araştırılmadı. Vardiya modülü yazılmadığı için henüz bağlayıcı değil.
@@ -76,7 +79,7 @@ izolasyonlu çalışan bir backend dilimi olarak sınırlandı. Bu zincir, istem
 | Vardiya, personel, devam, görev | Yok |
 | Kalite kontrol, sıcaklık, yağ ölçümü, düzeltici faaliyet | Yok |
 | KDV, işçilik maliyeti, genel gider | Yok; fiyatlar KDV hariç kabul ediliyor |
-| Rate limiting (login brute-force) | Yok — **güvenlik açığı olarak açık** |
+| Rate limiting (login brute-force) | Denetimde eklendi: hesap başına 15 dk'da 5 hata (FND-002). IP bazlı limit yok. |
 | Parola sıfırlama, MFA, refresh token, token iptali | Yok; pasif kullanıcı anında reddediliyor ama aktif kullanıcının token'ı süresi dolana kadar (30 dk) geçerli |
 | PostgreSQL Row-Level Security | Yok; izolasyon uygulama katmanında (ADR-0004) |
 | Anomali tespiti, AI ajanları | Yok; faz 1'de bilinçli olarak deterministik kurallar |

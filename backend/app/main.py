@@ -1,10 +1,14 @@
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import DataError
 
 from app.api.routes import router
 from app.config import load_settings
+from app.db import get_engine
 from app.errors import DomainError
 
 log = logging.getLogger("opsx")
@@ -15,7 +19,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="OperationOS-X",
         version="0.1.0",
-        docs_url="/docs" if settings.env != "production" else None,
+        # Interactive docs and the schema are opt-in: only when OPSX_ENV=development.
+        docs_url="/docs" if settings.env == "development" else None,
+        openapi_url="/openapi.json" if settings.env == "development" else None,
         redoc_url=None,
     )
     app.include_router(router)
@@ -25,6 +31,22 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": {"code": exc.code, "message": exc.message}},
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # Drop the echoed "input": it can contain passwords or other submitted secrets.
+        errors = [{k: v for k, v in e.items() if k in ("type", "loc", "msg")} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": errors})
+
+    @app.exception_handler(DataError)
+    async def data_error(_: Request, exc: DataError) -> JSONResponse:
+        # Raised by PostgreSQL for values outside NUMERIC precision; the request's
+        # transaction is rolled back when its session closes.
+        log.info("rejected out-of-range value: %s", exc.orig)
+        return JSONResponse(
+            status_code=422,
+            content={"detail": {"code": "out_of_range", "message": "a value is out of range"}},
         )
 
     @app.exception_handler(Exception)
@@ -47,5 +69,17 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/readyz")
+    def readyz() -> JSONResponse:
+        try:
+            with get_engine().connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception:  # noqa: BLE001 - any failure means not ready
+            log.exception("readiness check failed")
+            return JSONResponse(
+                status_code=503, content={"status": "unavailable", "database": "error"}
+            )
+        return JSONResponse(content={"status": "ok", "database": "ok"})
 
     return app

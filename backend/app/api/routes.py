@@ -9,26 +9,17 @@ from app.api import schemas as s
 from app.api.deps import ActorDep, SessionDep
 from app.config import load_settings
 from app.domain.permissions import Perm
-from app.errors import DomainError
-from app.models import Item, Product, StockMovement, User
-from app.security import issue_token, verify_password
+from app.models import Item, Product, StockMovement
+from app.security import issue_token
 from app.services import admin, catalog, inventory, orders, reports
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
 
 
-class Unauthorized(DomainError):
-    status_code = 401
-    code = "unauthorized"
-
-
 @router.post("/auth/login", response_model=s.TokenOut)
 def login(body: s.LoginIn, session: SessionDep) -> s.TokenOut:
-    user = session.scalar(select(User).where(User.email == body.email.lower()))
-    ok = verify_password(user.password_hash if user else None, body.password)
-    if not ok or user is None or not user.is_active:
-        raise Unauthorized("invalid credentials")
+    user = admin.authenticate(session, body.email, body.password)
     settings = load_settings()
     return s.TokenOut(
         access_token=issue_token(user.id, settings.jwt_secret, settings.jwt_ttl_minutes)

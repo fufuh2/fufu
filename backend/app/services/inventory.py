@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -54,9 +54,30 @@ def convert(session: Session, item: Item, quantity: Decimal, unit: str) -> Decim
         )
     }
     try:
-        return qty(to_base(quantity, unit, item.base_unit, conversions))
+        base = qty(to_base(quantity, unit, item.base_unit, conversions))
     except ConversionError as exc:
         raise Invalid(f"{item.sku}: {exc}") from exc
+    if quantity > 0 and base <= 0:
+        # e.g. 0.0001 of a 0.0001 g unit: below the ledger's 4-decimal precision
+        raise Invalid(f"{item.sku}: quantity is below the smallest storable amount")
+    return base
+
+
+def check_after_last_count(
+    session: Session, branch_id: uuid.UUID, item_id: uuid.UUID, occurred_at: datetime
+) -> None:
+    """A posted count already reflects every physical movement before it. Recording a
+    movement dated before that count would apply it a second time."""
+    last = session.scalar(
+        select(func.max(StockCount.counted_at))
+        .join(StockCountLine, StockCountLine.count_id == StockCount.id)
+        .where(StockCount.branch_id == branch_id, StockCountLine.item_id == item_id)
+    )
+    if last is not None and occurred_at < last:
+        raise Invalid(
+            "occurred_at is before the last stock count for this item; record the "
+            "difference with a new count instead"
+        )
 
 
 def lock_balance(
@@ -172,6 +193,7 @@ def receive(
     movements = []
     for item_id, base_qty, per_base in sorted(prepared, key=lambda p: p[0]):
         balance = lock_balance(session, actor.tenant_id, branch_id, item_id)
+        check_after_last_count(session, branch_id, item_id, when)
         movements.append(
             apply_movement(
                 session,
@@ -220,6 +242,8 @@ def record_waste(
     base_qty = convert(session, item, quantity, unit)
     when = check_not_future(occurred_at or now())
     balance = lock_balance(session, actor.tenant_id, branch_id, item.id)
+    # Checked under the balance lock so a concurrent count cannot slip in between.
+    check_after_last_count(session, branch_id, item.id, when)
     movement = apply_movement(
         session,
         actor,
