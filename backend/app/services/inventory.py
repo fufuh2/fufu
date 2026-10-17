@@ -166,6 +166,51 @@ class ReceiptLine:
     unit_cost: Decimal  # per entered unit, net of VAT
 
 
+def book_receipt(
+    session: Session,
+    actor: Actor,
+    branch_id: uuid.UUID,
+    lines: list[ReceiptLine],
+    when: datetime,
+    *,
+    ref_type: str,
+    ref_id: uuid.UUID,
+    note: str | None,
+) -> list[StockMovement]:
+    """Validate and post receipt lines without committing (callers own the transaction).
+    Returned movements follow the order of `lines`."""
+    if not lines:
+        raise Invalid("receipt has no lines")
+    prepared = []
+    for idx, line in enumerate(lines):
+        if line.quantity <= 0:
+            raise Invalid("received quantity must be positive")
+        if line.unit_cost < 0:
+            raise Invalid("unit cost cannot be negative")
+        item = get_item(session, actor, line.item_id)
+        base_qty = convert(session, item, line.quantity, line.unit)
+        per_base = line.unit_cost * line.quantity / base_qty
+        prepared.append((item.id, idx, base_qty, per_base))
+    movements: dict[int, StockMovement] = {}
+    for item_id, idx, base_qty, per_base in sorted(prepared, key=lambda p: (p[0], p[1])):
+        balance = lock_balance(session, actor.tenant_id, branch_id, item_id)
+        check_after_last_count(session, branch_id, item_id, when)
+        movements[idx] = apply_movement(
+            session,
+            actor,
+            balance,
+            movement_type="receipt",
+            delta=base_qty,
+            occurred_at=when,
+            allow_negative=True,
+            inbound_unit_cost=per_base,
+            ref_type=ref_type,
+            ref_id=ref_id,
+            note=note,
+        )
+    return [movements[i] for i in range(len(lines))]
+
+
 def receive(
     session: Session,
     actor: Actor,
@@ -174,41 +219,14 @@ def receive(
     supplier: str | None,
     occurred_at: datetime | None,
 ) -> list[StockMovement]:
+    """Receipt without a purchase order (e.g. market purchase)."""
     actor.require(Perm.STOCK_RECEIVE)
     get_active_branch(session, actor, branch_id)
-    if not lines:
-        raise Invalid("receipt has no lines")
     when = check_not_future(occurred_at or now())
     receipt_id = uuid.uuid4()
-    prepared = []
-    for line in lines:
-        if line.quantity <= 0:
-            raise Invalid("received quantity must be positive")
-        if line.unit_cost < 0:
-            raise Invalid("unit cost cannot be negative")
-        item = get_item(session, actor, line.item_id)
-        base_qty = convert(session, item, line.quantity, line.unit)
-        per_base = line.unit_cost * line.quantity / base_qty
-        prepared.append((item.id, base_qty, per_base))
-    movements = []
-    for item_id, base_qty, per_base in sorted(prepared, key=lambda p: p[0]):
-        balance = lock_balance(session, actor.tenant_id, branch_id, item_id)
-        check_after_last_count(session, branch_id, item_id, when)
-        movements.append(
-            apply_movement(
-                session,
-                actor,
-                balance,
-                movement_type="receipt",
-                delta=base_qty,
-                occurred_at=when,
-                allow_negative=True,
-                inbound_unit_cost=per_base,
-                ref_type="receipt",
-                ref_id=receipt_id,
-                note=supplier,
-            )
-        )
+    movements = book_receipt(
+        session, actor, branch_id, lines, when, ref_type="receipt", ref_id=receipt_id, note=supplier
+    )
     audit.record(
         session,
         actor,

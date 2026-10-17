@@ -36,10 +36,12 @@ def create_item(
     min_stock: Decimal | None,
     allergens: list[str],
     conversions: dict[str, Decimal],
+    target_stock: Decimal | None = None,
 ) -> Item:
     actor.require(Perm.CATALOG_MANAGE)
     if base_unit not in BASE_UNITS:
         raise Invalid(f"base_unit must be one of {sorted(BASE_UNITS)}")
+    _check_levels(min_stock, target_stock)
     for unit, factor in conversions.items():
         if factor <= 0:
             raise Invalid(f"conversion factor for '{unit}' must be positive")
@@ -51,6 +53,7 @@ def create_item(
         name=name,
         base_unit=base_unit,
         min_stock=min_stock,
+        target_stock=target_stock,
         allergens=sorted(set(allergens)),
     )
     session.add(item)
@@ -64,6 +67,11 @@ def create_item(
     audit.record(session, actor, "catalog.item.create", "item", item.id, {"sku": sku})
     session.commit()
     return item
+
+
+def _check_levels(min_stock: Decimal | None, target_stock: Decimal | None) -> None:
+    if target_stock is not None and min_stock is not None and target_stock < min_stock:
+        raise Invalid("target_stock cannot be below min_stock")
 
 
 def create_product(
@@ -197,6 +205,7 @@ def update_item(
     *,
     name: str | None,
     min_stock: Decimal | None | object = _UNSET,
+    target_stock: Decimal | None | object = _UNSET,
     allergens: list[str] | None,
     is_active: bool | None,
 ) -> Item:
@@ -210,6 +219,9 @@ def update_item(
         if isinstance(min_stock, Decimal) and min_stock < 0:
             raise Invalid("min_stock cannot be negative")
         item.min_stock = min_stock  # type: ignore[assignment]
+    if target_stock is not _UNSET:
+        item.target_stock = target_stock  # type: ignore[assignment]
+    _check_levels(item.min_stock, item.target_stock)
     if allergens is not None:
         item.allergens = sorted(set(allergens))
     if is_active is not None:

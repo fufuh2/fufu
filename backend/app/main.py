@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.exc import DataError
+from sqlalchemy.exc import DataError, IntegrityError
 
 from app.api.routes import router
 from app.config import load_settings
@@ -47,6 +47,16 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=422,
             content={"detail": {"code": "out_of_range", "message": "a value is out of range"}},
+        )
+
+    @app.exception_handler(IntegrityError)
+    async def integrity_error(_: Request, exc: IntegrityError) -> JSONResponse:
+        # Safety net: services translate expected conflicts themselves; anything reaching
+        # here is a constraint the service did not anticipate. Never a 500, never details.
+        log.warning("unhandled integrity error: %s", exc.orig)
+        return JSONResponse(
+            status_code=409,
+            content={"detail": {"code": "constraint", "message": "conflicts with existing data"}},
         )
 
     @app.exception_handler(Exception)

@@ -40,6 +40,10 @@ class Tenant(Base):
     id: Mapped[uuid.UUID] = _uuid()
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="TRY")
+    # Purchase orders above this total need approval by someone other than their creator.
+    po_approval_limit: Mapped[Decimal] = mapped_column(
+        MONEY, nullable=False, default=Decimal("10000"), server_default="10000"
+    )
     created_at: Mapped[datetime] = _now()
 
 
@@ -86,6 +90,11 @@ class Item(Base):
         UniqueConstraint("tenant_id", "sku"),
         CheckConstraint("base_unit IN ('g','ml','pcs')", name="ck_items_base_unit"),
         CheckConstraint("min_stock IS NULL OR min_stock >= 0", name="ck_items_min_stock"),
+        CheckConstraint(
+            "target_stock IS NULL OR (target_stock >= 0 AND "
+            "(min_stock IS NULL OR target_stock >= min_stock))",
+            name="ck_items_target_stock",
+        ),
     )
     id: Mapped[uuid.UUID] = _uuid()
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -95,6 +104,7 @@ class Item(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     base_unit: Mapped[str] = mapped_column(String(8), nullable=False)
     min_stock: Mapped[Decimal | None] = mapped_column(QTY)
+    target_stock: Mapped[Decimal | None] = mapped_column(QTY)
     allergens: Mapped[list[str]] = mapped_column(ARRAY(String(64)), nullable=False, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = _now()
@@ -378,3 +388,113 @@ class TransferLine(Base):
     shipped_quantity_base: Mapped[Decimal] = mapped_column(QTY, nullable=False)
     unit_cost: Mapped[Decimal] = mapped_column(UNIT_COST, nullable=False)
     received_quantity_base: Mapped[Decimal | None] = mapped_column(QTY)
+
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    tax_id: Mapped[str | None] = mapped_column(String(32))
+    email: Mapped[str | None] = mapped_column(String(320))
+    phone: Mapped[str | None] = mapped_column(String(32))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class SupplierPrice(Base):
+    """Append-only price history per supplier and item (price per base unit)."""
+
+    __tablename__ = "supplier_prices"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("suppliers.id"), nullable=False)
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(UNIT_COST, nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)  # quote | receipt
+    recorded_at: Mapped[datetime] = _now()
+    __table_args__ = (
+        CheckConstraint("unit_price >= 0", name="ck_supplier_price"),
+        CheckConstraint("source IN ('quote','receipt')", name="ck_supplier_price_source"),
+        Index("ix_supplier_prices_lookup", "supplier_id", "item_id", "recorded_at"),
+    )
+
+
+PO_STATUSES = (
+    "draft",
+    "pending_approval",
+    "approved",
+    "partially_received",
+    "received",
+    "closed",
+    "cancelled",
+)
+
+
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+    __table_args__ = (
+        CheckConstraint("status IN ('" + "','".join(PO_STATUSES) + "')", name="ck_po_status"),
+        CheckConstraint("total >= 0", name="ck_po_total"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    supplier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("suppliers.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    total: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    expected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(String(500))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_reason: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = _now()
+
+
+class PurchaseOrderLine(Base):
+    __tablename__ = "purchase_order_lines"
+    __table_args__ = (
+        UniqueConstraint("purchase_order_id", "item_id"),
+        CheckConstraint("quantity > 0", name="ck_pol_qty"),
+        CheckConstraint("quantity_base > 0", name="ck_pol_qty_base"),
+        CheckConstraint("unit_price >= 0", name="ck_pol_price"),
+        CheckConstraint("received_quantity_base >= 0", name="ck_pol_received"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    purchase_order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("purchase_orders.id"), nullable=False, index=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(QTY, nullable=False)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(UNIT_COST, nullable=False)  # per entered unit
+    quantity_base: Mapped[Decimal] = mapped_column(QTY, nullable=False)
+    received_quantity_base: Mapped[Decimal] = mapped_column(
+        QTY, nullable=False, default=Decimal("0")
+    )
+
+
+class PurchaseInvoice(Base):
+    __tablename__ = "purchase_invoices"
+    __table_args__ = (
+        UniqueConstraint("purchase_order_id", "invoice_no"),
+        CheckConstraint("amount >= 0", name="ck_invoice_amount"),
+        CheckConstraint("status IN ('matched','mismatch')", name="ck_invoice_status"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    purchase_order_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("purchase_orders.id"), nullable=False, index=True
+    )
+    invoice_no: Mapped[str] = mapped_column(String(64), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    received_value: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    difference: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    recorded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    recorded_at: Mapped[datetime] = _now()

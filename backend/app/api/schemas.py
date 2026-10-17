@@ -77,6 +77,7 @@ class ItemIn(Strict):
     name: Name
     base_unit: Annotated[str, Field(pattern=r"^(g|ml|pcs)$")]
     min_stock: NonNegQty | None = None
+    target_stock: NonNegQty | None = None
     allergens: list[Annotated[str, Field(min_length=1, max_length=64)]] = []
     conversions: dict[UnitCode, Qty] = {}
 
@@ -84,6 +85,7 @@ class ItemIn(Strict):
 class ItemPatch(Strict):
     name: Name | None = None
     min_stock: NonNegQty | None = None  # explicit null clears the minimum
+    target_stock: NonNegQty | None = None
     allergens: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = None
     is_active: bool | None = None
 
@@ -95,6 +97,7 @@ class ItemOut(BaseModel):
     name: str
     base_unit: str
     min_stock: Decimal | None
+    target_stock: Decimal | None
     allergens: list[str]
     is_active: bool
 
@@ -292,3 +295,113 @@ class TransferOut(BaseModel):
     shipped_at: datetime
     closed_at: datetime | None
     lines: list[TransferLineOut] = []
+
+
+Price = Annotated[Decimal, Field(ge=0, le=Decimal("1000000000"), decimal_places=6)]
+
+
+class SupplierIn(Strict):
+    name: Name
+    tax_id: Annotated[str, Field(max_length=32)] | None = None
+    email: EmailStr | None = None
+    phone: Annotated[str, Field(max_length=32)] | None = None
+
+
+class SupplierPatch(Strict):
+    name: Name | None = None
+    tax_id: Annotated[str, Field(max_length=32)] | None = None
+    email: EmailStr | None = None
+    phone: Annotated[str, Field(max_length=32)] | None = None
+    is_active: bool | None = None
+
+
+class SupplierOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    tax_id: str | None
+    email: str | None
+    phone: str | None
+    is_active: bool
+
+
+class QuoteIn(Strict):
+    item_id: uuid.UUID
+    unit_price: Price
+    unit: UnitCode
+
+
+class SupplierPriceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    supplier_id: uuid.UUID
+    item_id: uuid.UUID
+    unit_price: Decimal
+    source: str
+    recorded_at: datetime
+
+
+class POLineSchema(Strict):
+    item_id: uuid.UUID
+    quantity: Qty
+    unit: UnitCode
+    unit_price: Price
+
+
+class POIn(Strict):
+    supplier_id: uuid.UUID
+    expected_at: datetime | None = None
+    note: Annotated[str, Field(max_length=500)] | None = None
+    lines: Annotated[list[POLineSchema], Field(min_length=1, max_length=500)]
+
+
+class POLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    item_id: uuid.UUID
+    quantity: Decimal
+    unit: str
+    unit_price: Decimal
+    quantity_base: Decimal
+    received_quantity_base: Decimal
+
+
+class POOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    supplier_id: uuid.UUID
+    status: str
+    total: Decimal
+    expected_at: datetime | None
+    note: str | None
+    created_by: uuid.UUID
+    approved_by: uuid.UUID | None
+    approved_at: datetime | None
+    closed_reason: str | None
+    lines: list[POLineOut] = []
+
+
+class POReceiveLine(Strict):
+    item_id: uuid.UUID
+    quantity: Qty
+    unit: UnitCode
+    unit_price: Price | None = None
+
+
+class POReceiveIn(Strict):
+    occurred_at: datetime | None = None
+    lines: Annotated[list[POReceiveLine], Field(min_length=1, max_length=500)]
+
+
+class InvoiceIn(Strict):
+    invoice_no: Annotated[str, Field(min_length=1, max_length=64)]
+    amount: Annotated[Decimal, Field(ge=0, le=Decimal("10000000000"), decimal_places=2)]
+
+
+class InvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    invoice_no: str
+    amount: Decimal
+    received_value: Decimal
+    difference: Decimal
+    status: str

@@ -11,7 +11,7 @@ from app.config import load_settings
 from app.domain.permissions import Perm
 from app.models import Item, Product, StockMovement
 from app.security import issue_token
-from app.services import admin, catalog, inventory, orders, reports, transfers
+from app.services import admin, catalog, inventory, orders, purchasing, reports, transfers
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -101,6 +101,7 @@ def create_item(body: s.ItemIn, actor: ActorDep, session: SessionDep) -> Any:
         name=body.name,
         base_unit=body.base_unit,
         min_stock=body.min_stock,
+        target_stock=body.target_stock,
         allergens=body.allergens,
         conversions=body.conversions,
     )
@@ -131,6 +132,7 @@ def update_item(item_id: uuid.UUID, body: s.ItemPatch, actor: ActorDep, session:
         item_id,
         name=fields.get("name"),
         min_stock=fields.get("min_stock", catalog._UNSET),
+        target_stock=fields.get("target_stock", catalog._UNSET),
         allergens=fields.get("allergens"),
         is_active=fields.get("is_active"),
     )
@@ -386,3 +388,125 @@ def cancel_transfer(
     transfer_id: uuid.UUID, body: s.CancelIn, actor: ActorDep, session: SessionDep
 ) -> Any:
     return _transfer_out(session, transfers.cancel(session, actor, transfer_id, body.reason))
+
+
+# --- purchasing -----------------------------------------------------------------------------
+
+
+@router.post("/suppliers", response_model=s.SupplierOut, status_code=201)
+def create_supplier(body: s.SupplierIn, actor: ActorDep, session: SessionDep) -> Any:
+    return purchasing.create_supplier(
+        session, actor, name=body.name, tax_id=body.tax_id, email=body.email, phone=body.phone
+    )
+
+
+@router.get("/suppliers", response_model=list[s.SupplierOut])
+def list_suppliers(actor: ActorDep, session: SessionDep) -> Any:
+    return purchasing.list_suppliers(session, actor)
+
+
+@router.patch("/suppliers/{supplier_id}", response_model=s.SupplierOut)
+def update_supplier(
+    supplier_id: uuid.UUID, body: s.SupplierPatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return purchasing.update_supplier(
+        session, actor, supplier_id, body.model_dump(exclude_unset=True)
+    )
+
+
+@router.post("/suppliers/{supplier_id}/prices", response_model=s.SupplierPriceOut, status_code=201)
+def record_quote(
+    supplier_id: uuid.UUID, body: s.QuoteIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return purchasing.record_quote(
+        session, actor, supplier_id, body.item_id, body.unit_price, body.unit
+    )
+
+
+@router.get("/suppliers/{supplier_id}/prices", response_model=list[s.SupplierPriceOut])
+def price_history(
+    supplier_id: uuid.UUID, item_id: uuid.UUID, actor: ActorDep, session: SessionDep
+) -> Any:
+    return purchasing.price_history(session, actor, supplier_id, item_id)
+
+
+def _po_out(session: SessionDep, po: Any) -> s.POOut:
+    out = s.POOut.model_validate(po)
+    out.lines = [s.POLineOut.model_validate(x) for x in purchasing.po_lines(session, po.id)]
+    return out
+
+
+@router.post("/branches/{branch_id}/purchase-orders", response_model=s.POOut, status_code=201)
+def create_po(branch_id: uuid.UUID, body: s.POIn, actor: ActorDep, session: SessionDep) -> Any:
+    po = purchasing.create_po(
+        session,
+        actor,
+        branch_id,
+        body.supplier_id,
+        [purchasing.POLineIn(x.item_id, x.quantity, x.unit, x.unit_price) for x in body.lines],
+        body.expected_at,
+        body.note,
+    )
+    return _po_out(session, po)
+
+
+@router.get("/branches/{branch_id}/purchase-orders", response_model=list[s.POOut])
+def list_pos(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    status: Annotated[str | None, Query(max_length=24)] = None,
+) -> Any:
+    return [_po_out(session, p) for p in purchasing.list_pos(session, actor, branch_id, status)]
+
+
+@router.get("/branches/{branch_id}/purchase-suggestions")
+def purchase_suggestions(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return purchasing.suggestions(session, actor, branch_id)
+
+
+@router.get("/purchase-orders/{po_id}", response_model=s.POOut)
+def get_po(po_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    actor.require(Perm.STOCK_READ)
+    return _po_out(session, purchasing.get_po(session, actor, po_id))
+
+
+@router.post("/purchase-orders/{po_id}/submit", response_model=s.POOut)
+def submit_po(po_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return _po_out(session, purchasing.submit_po(session, actor, po_id))
+
+
+@router.post("/purchase-orders/{po_id}/approve", response_model=s.POOut)
+def approve_po(po_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return _po_out(session, purchasing.approve_po(session, actor, po_id))
+
+
+@router.post("/purchase-orders/{po_id}/cancel", response_model=s.POOut)
+def cancel_po(po_id: uuid.UUID, body: s.CancelIn, actor: ActorDep, session: SessionDep) -> Any:
+    return _po_out(session, purchasing.cancel_po(session, actor, po_id, body.reason))
+
+
+@router.post("/purchase-orders/{po_id}/close", response_model=s.POOut)
+def close_po(po_id: uuid.UUID, body: s.CancelIn, actor: ActorDep, session: SessionDep) -> Any:
+    return _po_out(session, purchasing.close_po(session, actor, po_id, body.reason))
+
+
+@router.post("/purchase-orders/{po_id}/receipts", status_code=201)
+def receive_po(po_id: uuid.UUID, body: s.POReceiveIn, actor: ActorDep, session: SessionDep) -> Any:
+    return purchasing.receive_po(
+        session,
+        actor,
+        po_id,
+        [
+            purchasing.POReceiveLineIn(x.item_id, x.quantity, x.unit, x.unit_price)
+            for x in body.lines
+        ],
+        body.occurred_at,
+    )
+
+
+@router.post("/purchase-orders/{po_id}/invoices", response_model=s.InvoiceOut, status_code=201)
+def record_invoice(
+    po_id: uuid.UUID, body: s.InvoiceIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return purchasing.record_invoice(session, actor, po_id, body.invoice_no, body.amount)
