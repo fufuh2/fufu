@@ -16,7 +16,10 @@ from sqlalchemy.orm import Session
 from app.models import Order
 from tests.conftest import PASSWORD, new_tenant, setup_kitchen, stock_of
 
-sync_api = pytest.importorskip("playwright.sync_api")
+if os.environ.get("OPSX_REQUIRE_BROWSER") == "1":
+    import playwright.sync_api as sync_api  # fail loudly in CI instead of skipping
+else:
+    sync_api = pytest.importorskip("playwright.sync_api")
 
 
 def _free_port() -> int:
@@ -54,6 +57,8 @@ def browser() -> Iterator[object]:
         try:
             b = p.chromium.launch(executable_path=path) if path else p.chromium.launch()
         except Exception as exc:  # noqa: BLE001
+            if os.environ.get("OPSX_REQUIRE_BROWSER") == "1":
+                pytest.fail(f"OPSX_REQUIRE_BROWSER=1 but Chromium could not start: {exc}")
             pytest.skip(f"no Chromium available: {exc}")
         yield b
         b.close()

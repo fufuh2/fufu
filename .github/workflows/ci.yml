@@ -23,6 +23,7 @@ jobs:
       OPSX_DATABASE_URL: postgresql+psycopg://ops:ops@localhost:5432/opsx_test
       OPSX_JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
       OPSX_INTEGRATION_KEY: ci-only-integration-key-not-used-elsewhere-0123
+      OPSX_REQUIRE_BROWSER: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,5 +37,5 @@ jobs:
       - run: mypy app
       - name: Migrations match models
         run: alembic upgrade head && alembic check && alembic downgrade base
-      - run: pytest -o addopts="" -p no:warnings
+      - run: pytest -o addopts="" -p no:warnings -rs
       - run: pip install pip-audit && pip-audit -r requirements.lock
