@@ -22,4 +22,5 @@
 | REQ-SEC-03 | `main.py` exception handler + middleware | `test_errors_do_not_leak_internals` | Done |
 | REQ-AUD-01 | `services/audit.py`, `admin.list_audit` | `test_full_operational_flow`, `test_ledgers_are_append_only`, `test_audit_log_is_branch_scoped` | Done |
 
-Toplam: 58 test (pytest parametrize vakaları dahil), son koşu 58 passed.
+Faz 1 tablosu. Faz 2 gereksinimleri ve testleri: `REQUIREMENTS.md` "Faz 2 gereksinimleri" tablosu.
+Güncel toplam: 126 test vakası (108 fonksiyon), son koşu 126 passed (bkz. `docs/audit/TEST_EVIDENCE.md` K).

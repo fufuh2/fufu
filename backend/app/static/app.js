@@ -6,7 +6,7 @@
 // drawn must stop instead of painting over the login screen.
 class SessionEnded extends Error {}
 
-const state = { token: null, me: null, branch: null, branches: [], items: [], products: [] };
+const state = { pendingMessage: null, token: null, me: null, branch: null, branches: [], items: [], products: [] };
 
 // ---- storage (sessionStorage: cleared when the tab closes) --------------------------------
 function load(key) { try { return sessionStorage.getItem(key); } catch { return null; } }
@@ -87,11 +87,21 @@ function describe(status, data) {
 
 // ---- auth ----------------------------------------------------------------------------------
 function logout(reason) {
+  // Idempotent: parallel requests can all come back 401; only the first one logs out,
+  // otherwise a later call could clear the message the first one queued.
+  if (state.token === null && location.hash === "#/login") return;
   state.token = null; state.me = null;
   save("token", null);
   document.getElementById("top").hidden = true;
-  location.hash = "#/login";
-  if (reason) message(reason);
+  // hashchange fires asynchronously and clears messages, so hand the reason to it.
+  state.pendingMessage = reason || null;
+  if (location.hash === "#/login") { renderLogin(); showPending(); }
+  else location.hash = "#/login";
+}
+
+function showPending() {
+  message(state.pendingMessage || "");
+  state.pendingMessage = null;
 }
 
 async function bootstrapSession() {
@@ -422,7 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logout("Çıkış yapıldı.");
   });
   document.getElementById("branch-select").addEventListener("change", (ev) => { state.branch = ev.target.value; save("branch", state.branch); route(); });
-  window.addEventListener("hashchange", () => { message(""); route(); });
+  window.addEventListener("hashchange", () => { showPending(); route(); });  // clears stale messages too
   window.addEventListener("unhandledrejection", (ev) => { if (ev.reason instanceof SessionEnded) ev.preventDefault(); });
   route();
 });

@@ -1,5 +1,7 @@
 # Durum Raporu — Faz 1
 
+> **Faz 2 eklendi (transfer, satın alma, kalite, vardiya, POS webhook, web arayüzü). Güncel karar:
+> `docs/audit/RELEASE_READINESS.md`, kanıt: `docs/audit/TEST_EVIDENCE.md` bölüm K, mimari: ADR-0005.**
 > **Güncel durum için önce `docs/audit/` okuyun.** 2026-10-17 denetimi bu dosyadaki bazı ifadeleri
 > güncelledi (CI, rate limiting, test sayısı). Aşağıdaki "kanıtlı" tablo geliştirme anına aittir.
 

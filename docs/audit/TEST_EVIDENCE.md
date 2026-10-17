@@ -142,3 +142,23 @@ eşlemesine bakılmadan gereksinim belgesindeki rol tanımlarından yazıldı. U
 | Harici entegrasyon (POS, webhook) | NOT IMPLEMENTED | Entegrasyon yok; mock da yok |
 | Yük / performans | UNVERIFIED | Çalıştırılmadı |
 | `/readyz` DB kapalıyken 503 | UNVERIFIED | Çalıştırılmadı |
+
+## K. Faz 2 son koşu (2026-10-17T12:57:27Z)
+Komut: `pytest -o addopts="" -q -p no:warnings -rfsxX` (`backend/`), PostgreSQL 16, Chromium 141 (Playwright 1.64).
+
+| Metrik | Değer |
+|---|---|
+| Toplanan test vakası | 126 (unit 20 · integration 75 · audit 22 · ui 9) |
+| Benzersiz test fonksiyonu | 108 |
+| Geçen / başarısız / atlanan / xfail | 126 / 0 / 0 / 0 — aynı ağaçta art arda 3 koşu |
+| Kararsızlık avı | Tüm paket 6 tekrarda 1 hata (FND-024) → düzeltme → izole 30/30, UI paketi 5/5, tam paket 3/3 |
+| Canlı sunucu akışı | 36/36, `OPSX_ENV=production`, `/docs` 404, `/ui/` 200, logda 500 yok |
+| Migration | 0001→0007 upgrade, `alembic check`, base'e downgrade, tekrar upgrade: temiz; ayrıca CHECK kısıtı karşılaştırma testi |
+| Statik | ruff temiz · mypy 0 hata (29 dosya) · bandit 0 bulgu (5 695 satır) · pip-audit (runtime ve dev lock) bilinen açık yok |
+
+Mutasyon kontrolleri (kod geri alındı): FND-012 offset'i kapatmak → 1 test düştü. Token sürüm
+kontrolünü kapatmak → 2 test düştü. 0005'ten CHECK kısıtını çıkarmak → şema testi düştü.
+
+Tekrar koşuları ayrı test olarak sayılmadı.
+
+**Bu tablo "hatasız" anlamına gelmez.** Gerçek kullanıcı, yük, Docker ve gerçek POS testleri yok (bkz. RELEASE_READINESS).

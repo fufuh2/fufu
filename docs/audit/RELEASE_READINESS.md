@@ -1,49 +1,51 @@
-# Canlıya Hazırlık Kararı
+# Canlıya Hazırlık Kararı (faz 2 sonrası)
 
-## Karar: **CONDITIONAL PASS — yalnızca faz-1 backend API kapsamı için**
+## Karar: **CONDITIONAL PASS — kontrollü pilot için**
 
-Bu karar **canlıya alma onayı değildir.** Anlamı şu: Tanımlı backend kapsamında (stok, reçete,
-sipariş, fire, sayım, maliyet/marj, yetki) açık P0/P1 bulgu yok ve kritik hesaplar bağımsız yöntemlerle
-doğrulandı. Sistem iç pilot ve entegrasyon geliştirmesi için kullanılabilir.
+Önceki karar (faz 1) yalnızca backend API içindi. Faz 2 ile ürün düzeyindeki engellerin çoğu kapandı:
+arayüz, POS adaptörü, transfer, satın alma, kalite ve vardiya artık var ve testli.
+**Bu, "hatasız" veya "eksiksiz" demek değildir.** Kanıtlanan şu: tanımlı kapsamın kabul kriterleri
+testle doğrulandı, açık P0/P1 yok, bilinen kalan sorunlar aşağıda.
 
-**Restoran işletmelerinin kullanacağı bir ürün olarak canlıya alınamaz.** Gerekçesi aşağıdaki engeller.
+### Kanıt
+- Test paketi: sonuçlar `TEST_EVIDENCE.md` bölüm K'de (birim, entegrasyon, düşmanca, referans model,
+  gerçek tarayıcı).
+- Canlı sunucu akışı (`scripts/audit_e2e.py`) faz 2 kodu ve production ayarıyla 36/36 geçti, sunucu logunda 500 yok.
+- Açık bulgular: P0 0 · P1 0 · P2 1 (FND-014, RLS yok) · P3 3.
+- Statik kontroller: ruff, mypy, bandit (0), pip-audit (bilinen açık yok), secret taraması (yalnızca test sabitleri).
 
-### Kararın dayandığı kanıt
-- 79 passed, 0 failed, 1 xfailed (bilinen açık P2); canlı akış 36/36; GitHub Actions yeşil (önceki commit).
-- Açık bulgular: P0 0 · P1 0 · P2 4 · P3 5.
-- Bu denetimde 11 bulgu düzeltildi (2'si P1), her biri için regresyon testi var.
+### Kararın en güçlü karşı argümanı
+Denetimi ve geliştirmeyi aynı oturum yaptı. Testleri yazan, kodu da yazdı; ortak kör noktalar kalmış
+olabilir. Faz 2'de testler 6 gerçek hata yakaladı (FND-021…026): bu testlerin işe yaradığını gösteriyor,
+ama aynı zamanda bulunmamış hatalar olma olasılığının düşük olmadığını da gösteriyor.
+Gerçek kullanıcıyla hiç denenmedi.
 
-### Bu kararın en güçlü karşı argümanı
-"CONDITIONAL PASS" etiketi "neredeyse hazır" diye okunabilir. Ürünün kullanıcıya dönük yarısı (arayüz,
-POS, satın alma, vardiya, kalite) hiç yok. Denetimi kodu yazan oturumun yapması da kararın güvenilirliğini
-düşürüyor. İstemdeki kategorilerle ürün düzeyinde değerlendirilseydi, kullanıcıya dönük kritik işlevler
-eksik olduğu için karar **FAIL** olurdu. Bu ayrım bilinçli olarak açık yazılmıştır.
+## Kalan engeller ve eksikler
+| # | Konu | Durum | Etki |
+|---|---|---|---|
+| 1 | Docker imajı ve compose | BLOCKED (ortamda Docker yok) | Dağıtım yolu doğrulanmadı |
+| 2 | PostgreSQL RLS | OPEN (FND-014) | Tenant izolasyonu tek katman |
+| 3 | Gerçek POS markası | NOT IMPLEMENTED | Genel adaptör var; markaya özel köprü yazılmalı |
+| 4 | Arayüzde transfer, satın alma, vardiya, entegrasyon ekranları | NOT IMPLEMENTED | Bu işlemler şimdilik yalnızca API ile yapılabiliyor |
+| 5 | Alt reçete, lot/SKT/FEFO, varyant, kısmi iade, KDV | NOT IMPLEMENTED | Bu ihtiyacı olan işletme için eksik |
+| 6 | Fotoğraf/dosya yükleme, bildirim, rapor dışa aktarma | NOT IMPLEMENTED | — |
+| 7 | Yük testi, otomatik yedek/PITR, metrik/trace | UNVERIFIED / NOT IMPLEMENTED | Kapasite bilinmiyor |
+| 8 | Türk iş hukuku eşikleri, KVKK | Araştırılmadı | Rapor yasal uyum iddiası taşımaz |
+| 9 | Rakip araştırması, ASVS madde eşlemesi | Yapılmadı | Önceliklendirme kanıtsız |
 
-## Canlıya alma engelleri (ürün düzeyinde)
-| # | Engel | Bulgu / durum |
-|---|---|---|
-| 1 | Kullanıcı arayüzü yok; personel API'yi doğrudan kullanamaz | NOT IMPLEMENTED |
-| 2 | POS entegrasyonu yok; satışlar elle girilmeli (istemdeki sorun 1) | NOT IMPLEMENTED |
-| 3 | Geç gelen satış stoku iki kez düşüyor; POS senkronu ile kesin tetiklenir | FND-012 (P2) |
-| 4 | Fiyat ve kayıt güncellenemiyor, pasife alınamıyor | FND-013 (P2) |
-| 5 | Şubeler arası transfer yok; transfer yapan işletmede fark raporu yanıltıcı olur | NOT IMPLEMENTED |
-| 6 | Docker imajı hiç build edilmedi; dağıtım yolu doğrulanmadı | BLOCKED |
-| 7 | Otomatik yedekleme/PITR yok; yük testi yok | NOT IMPLEMENTED / UNVERIFIED |
+## Pilot koşulları
+1. Tek işletme, az sayıda şube; gerçek POS yerine elle sipariş veya imzalı webhook ile test köprüsü.
+2. HTTPS ters proxy, IP bazlı istek sınırı, `OPSX_ENV=production`, güçlü `OPSX_JWT_SECRET` ve
+   `OPSX_INTEGRATION_KEY`. Uygulama DB rolüne TRUNCATE yetkisi verilmemeli.
+3. Günlük `pg_dump` ve haftalık geri yükleme provası.
+4. İlk hafta sayım farkları elle ikinci kez kontrol edilmeli (hesaplar testli, ama gerçek veriyle değil).
 
-## Backend pilotu için koşullar
-1. Pilotta POS senkronu olmamalı veya satışlar sayımdan sonra tarihli gelmeli (FND-012).
-2. Ters proxy'de IP bazlı istek sınırı ve TLS (FND-002 kalan riski, HSTS).
-3. `OPSX_ENV=production`, güçlü `OPSX_JWT_SECRET`, uygulama DB rolüne TRUNCATE yetkisi verilmemeli (ADR-0002).
-4. Docker imajı CI'da build edilip çalıştırılarak doğrulanmalı.
-5. Günlük `pg_dump` ve geri yükleme provası.
-
-## Bu kararı nasıl doğrularsın
+## Nasıl doğrularsın
 ```bash
 cd backend
 createdb opsx_test
-OPSX_TEST_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/opsx_test \
-  pytest -o addopts="" -rxX            # beklenen: 79 passed, 1 xfailed
-# canlı akış: ayrı bir 'audit' DB, migration, CLI ile tenant, uvicorn, sonra:
-python scripts/audit_e2e.py http://localhost:8000 $OPSX_DATABASE_URL owner@example.com '<parola>'
+playwright install chromium   # veya OPSX_CHROMIUM_PATH
+OPSX_TEST_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/opsx_test pytest -o addopts="" -rfsxX
 ```
-Hesapları elle kontrol etmek için `TEST_EVIDENCE.md` bölüm D'deki aritmetiği kullan.
+Ardından arayüzü `http://localhost:8000/ui/` adresinden açıp bir sipariş gir; stok tablosundaki
+düşümü reçeteden elle hesaplayarak karşılaştır.

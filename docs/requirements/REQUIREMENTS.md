@@ -97,6 +97,28 @@ Platform yöneticisi HTTP rolü değildir (ADR-0004). İstemdeki "depo ve satın
 - **Kabul:** Tüm yazma işlemleri `audit_events`'e; tablo append-only; şube kullanıcısı sadece kendi şubesinin olaylarını görür.
 - **Test:** `test_full_operational_flow`, `test_ledgers_are_append_only`, `test_audit_log_is_branch_scoped`. **Durum:** Done (dışa aktarma yok)
 
-### Başlanmamış modüller (MUST/SHOULD öncelikleri faz planında)
-REQ-PUR-* satın alma ve tedarikçi · REQ-SHF-* vardiya/personel · REQ-QC-* kalite kontrol ·
-REQ-TRF-* şubeler arası transfer · REQ-LOT-* lot/SKT/FEFO · REQ-UI-* frontend · REQ-OBS-* gözlemlenebilirlik.
+## Faz 2 gereksinimleri
+
+| ID | Gereksinim (kabul kriteri özet) | Test | Durum |
+|---|---|---|---|
+| REQ-STK-08 | Sayımdan önce tarihli fire/mal kabul reddedilir; geç gelen satış offset ile fiziksel sayıma uyar | `test_backdated_waste_before_last_count_is_rejected`, `test_backdated_sale_before_count_does_not_double_consume` | Done |
+| REQ-CAT-01 | Malzeme/ürün/şube/kullanıcı güncelleme ve pasifleştirme, önce/sonra denetim izi | `test_management.py` (4 test) | Done |
+| REQ-SEC-04 | Token iptali (rol/aktiflik/parola değişimi, logout-all) | `test_role_change_and_deactivation_revoke_tokens`, `test_password_change_and_logout_all`, `test_token_without_version_is_rejected` | Done |
+| REQ-RCP-05 | Ürün teorik maliyeti ve food cost %, bilinmeyen maliyet `null` | `test_recipe_cost_endpoint` | Done |
+| REQ-TRF-01 | İki aşamalı transfer, maliyetle; eksik teslim `transit_loss`; iptal | `test_transfers.py` (6 test) | Done |
+| REQ-PUR-01 | Tedarikçi, fiyat geçmişi, satın alma siparişi yaşam döngüsü, dört göz onayı | `test_purchasing.py` | Done |
+| REQ-PUR-02 | Kısmi mal kabul, fazla teslim reddi, %5 fiyat sapması uyarısı, fatura karşılaştırma | `test_po_lifecycle_with_partial_receipts_and_invoice` | Done |
+| REQ-PUR-03 | Açık siparişleri dikkate alan sipariş önerisi (min/hedef) | `test_suggestions_include_open_orders` | Done |
+| REQ-QC-01 | Kontrol listesi şablonu (evet/hayır, aralıklı sayı, kanıt referansı) | `test_checklist_validation` | Done |
+| REQ-QC-02 | Değiştirilemez kontrol kaydı, gerekçeli düzeltme | `test_runs_are_immutable_and_corrections_supersede` | Done |
+| REQ-QC-03 | Uygunsuzluk: otomatik açılış, atama, düzeltici faaliyet; şube skoru, kaçırılan günlük kontrol | `test_checklist_run_opens_nonconformity_and_resolves`, `test_missed_daily_checklist_is_reported` | Done |
+| REQ-SHF-01 | Çakışmasız vardiya; çalışan yalnızca kendi vardiyasını görür | `test_shifts_overlap_and_visibility` | Done |
+| REQ-SHF-02 | Giriş/çıkış, yönetici düzeltmesi (gerekçe + önce/sonra), saat raporu, eşik aşımı | `test_attendance_and_hours` | Done (yasal eşikler doğrulanmadı) |
+| REQ-SHF-03 | Görev atama/tamamlama, zamanında tamamlama oranı, değiştirilemez devir notu | `test_tasks_and_handover` | Done |
+| REQ-INT-01 | İmzalı POS webhook, tekrar/zaman kontrolü, inbox, idempotent sipariş, eşlenmemiş kod yeniden deneme | `test_pos_webhook.py` (7 test) | Done (gerçek POS markası yok) |
+| REQ-UI-01 | Web arayüzü: giriş, özet, sipariş, stok işlemleri, raporlar, kalite, görevler | `tests/ui/test_browser.py` (9 test) | Partial: transfer/satın alma/vardiya/entegrasyon ekranları yok (API var) |
+
+### Hâlâ başlanmamış
+REQ-RCP-03 alt reçete · REQ-LOT-* lot/SKT/FEFO · varyant/modifier · kısmi iade · KDV · işçilik maliyetinin
+ürün maliyetine dağıtımı · REQ-OBS-* metrik/trace · bildirim (e-posta/push) · rapor dışa aktarma (CSV/PDF) ·
+fotoğraf/dosya yükleme · PostgreSQL RLS.

@@ -4,7 +4,7 @@
 **P2** önemli eksik veya ciddi sorun · **P3** düşük etki.
 Durum: **FIXED** (düzeltildi + regresyon testi geçiyor) · **OPEN**.
 
-Özet: 0 P0 · 2 P1 (ikisi de FIXED) · 7 P2 (3 FIXED, 4 OPEN) · 11 P3 (6 FIXED, 5 OPEN).
+Özet (güncel, faz 2 sonrası): 0 P0 · 2 P1 (FIXED) · 10 P2 (9 FIXED, 1 OPEN: FND-014) · 14 P3 (11 FIXED, 3 OPEN: FND-016, FND-017, FND-018).
 
 ---
 
@@ -80,7 +80,7 @@ Böyle oluşturulan sahip hiç giriş yapamaz. Denetim sırasında tesadüfen bu
 
 ---
 
-## FND-012 · P2 · Stok bütünlüğü · OPEN
+## FND-012 · P2 · Stok bütünlüğü · FIXED (faz 2)
 **Sorun:** Son sayımdan önce gerçekleşmiş ama sonra sisteme gelen satış (POS çevrimdışı senkronu), tüketimi ikinci kez düşüyor.
 **Yeniden üretim:** `test_backdated_sale_before_count_does_not_double_consume` (xfail strict). Sayım 29 ekmek,
 sayım öncesi tarihli 1 burger → sistem 28 gösteriyor, fiziksel stok 29.
@@ -89,7 +89,7 @@ sayım öncesi tarihli 1 burger → sistem 28 gösteriyor, fiziksel stok 29.
 (b) sayımları "dönem kapanışı" olarak modelleyip geç gelen satışları bir sonraki döneme atamak.
 **Etki:** Çevrimdışı senkron yapan şubelerde açıklanamayan fark sistematik olarak şişer.
 
-## FND-013 · P2 · Fonksiyon eksikliği · OPEN (NOT IMPLEMENTED)
+## FND-013 · P2 · Fonksiyon eksikliği · FIXED (faz 2)
 Hiçbir PUT/PATCH/DELETE endpoint'i yok (20 route'un tamamı GET/POST). Ürün fiyatı değiştirilemiyor;
 malzeme, ürün, şube ve kullanıcı pasife alınamıyor; rol değiştirilemiyor. Bunlar yalnızca doğrudan SQL ile yapılabiliyor.
 
@@ -98,7 +98,7 @@ PostgreSQL Row-Level Security yok; tenant izolasyonu yalnızca uygulama sorgular
 Mevcut tüm endpoint'ler test edildi (`test_tenant_isolation`, `test_cross_tenant_ids_inside_bodies`,
 rol × endpoint matrisi). Ancak gelecekte yazılacak bir sorguda filtre unutulursa son savunma hattı yok.
 
-## FND-015 · P2 · Oturum · OPEN
+## FND-015 · P2 · Oturum · FIXED (faz 2)
 Token iptal mekanizması yok. Çalınan bir token 30 dakika geçerli kalır. Pasife alınan kullanıcı ve
 rol değişikliği anında etkili, çünkü her istekte DB okunuyor.
 
@@ -113,9 +113,58 @@ Marj raporundaki SMM satır bazında, fark raporundaki teorik maliyet hareket ba
 ## FND-018 · P3 · Operasyon · OPEN
 Fazla satış nedeniyle bakiye negatife düştüğünde, sayım yapılana kadar o malzeme için fire kaydı 409 alıyor (`test_sale_may_go_negative_but_waste_may_not`).
 
-## FND-019 · P3 · Fonksiyon eksikliği · OPEN
+## FND-019 · P3 · Fonksiyon eksikliği · FIXED (faz 2)
 Ürünün teorik reçete maliyetini satıştan önce gösteren bir endpoint yok. Kritik akışın 7. adımı yalnızca sipariş satırı maliyeti üzerinden doğrulanabildi.
 
-## FND-020 · P3 · API · OPEN
+## FND-020 · P3 · API · FIXED (faz 2)
 `/items`, `/products`, `/branches/{id}/stock` sayfalama yapmıyor. `GET /products` izin kontrolü yapmıyor:
 her kimliği doğrulanmış rol, kendi tenant'ının ürün ve fiyatlarını görebiliyor. Tenant izolasyonu bu endpoint'te de geçerli.
+
+
+---
+
+## Faz 2 düzeltme notları
+
+- **FND-012:** Sayımdan önce yapılıp sonra kaydedilen satış, sayım anına tarihli `late_sale_offset`
+  yazar; bakiye fiziksel sayımla eşleşir. Fark raporu bu hareketi sayım düzeltmesiyle netleştirir. İptal her ikisini de geri alır.
+  Eski xfail testi artık normal test: `test_backdated_sale_before_count_does_not_double_consume`.
+  Mutasyon (offset kapatıldı) → test düştü.
+- **FND-013:** `PATCH /items|products|branches|users/{id}`. SKU ve baz birim değiştirilemez. Fiyat
+  değişikliği yalnızca yeni siparişlere uygulanır. Her değişiklik önce/sonra değeriyle denetim izine yazılır.
+  Testler: `tests/integration/test_management.py`.
+- **FND-015:** `users.token_version`. Rol veya aktiflik değişikliği, parola değişikliği ve `POST /auth/logout-all`
+  tüm token'ları iptal eder. `ver` alanı olmayan eski token'lar reddedilir. Mutasyon (sürüm kontrolü kapatıldı) → 2 test düştü.
+- **FND-019:** `GET /products/{id}/cost?branch_id=`. Malzemenin şubede hiç girişi yoksa maliyeti `null` döner.
+- **FND-020:** `limit`/`offset` eklendi; `GET /products` artık `stock.read` izni istiyor (tüm rollerde var).
+
+## Faz 2'de bulunan ve düzeltilen yeni bulgular
+
+### FND-021 · P2 · Migration · FIXED
+Autogenerate, mevcut tabloya eklenen CHECK kısıtını (`ck_items_target_stock`) migration'a koymadı;
+`alembic check` bu farkı görmüyor. Düzeltme: kısıt migration'a elle eklendi. Ayrıca yeni
+`tests/integration/test_schema.py` modeldeki tüm CHECK kısıtlarını DB ile karşılaştırıyor.
+Kısıt migration'dan çıkarılınca test düşüyor (doğrulandı).
+
+### FND-022 · P2 · UI · FIXED
+Hızlı kullanıcı, girişten hemen sonra menüye tıklarsa giriş işleyicisi onu özet sayfasına geri atıyordu.
+Playwright testi yakaladı. Düzeltme: yönlendirme yalnızca kullanıcı hâlâ login sayfasındaysa yapılıyor.
+
+### FND-023 · P2 · UI · FIXED
+Sayfa yüklenirken oturum düşerse (401), giriş ekranı açıldıktan sonra yarım kalan sayfa onun üzerine
+çiziliyordu. Düzeltme: 401'de `SessionEnded` fırlatılıyor ve sayfa çizimi duruyor.
+
+### FND-024 · P3 · UI · FIXED
+"Oturumunuz sona erdi" mesajı yaklaşık 6 tam koşuda 1 kez görünmüyordu. Sebep: asenkron `hashchange`
+işleyicisi mesajı siliyordu. Kararsız (flaky) test 6'lık tekrar koşusunda yakalandı.
+İlk düzeltme (mesajı gezinme sonrasına ertelemek) **yetmedi**: 10 tekrarda 1 kez daha düştü.
+Asıl ikinci neden: sayfa iki isteği paralel atıyor, ikisi de 401 alınca `logout()` iki kez
+çalışıyor ve ikinci çağrı birincinin sıradaki mesajını siliyordu. Düzeltme: `logout()` idempotent.
+Doğrulama: yalnızca yeni kodla izole test 30/30, tüm UI paketi 5/5 geçti. Bu, yarışın tamamen
+kapandığını kanıtlamaz; olasılığı ölçülebilir düzeyin altına indirdiğini gösterir.
+
+### FND-025 · P3 · UI · FIXED
+`crypto.randomUUID` yalnızca güvenli bağlamda (HTTPS/localhost) var; düz HTTP kurulumda sipariş ekranı
+çökerdi. Düzeltme: `getRandomValues` yedeği eklendi. **Doğrulanmadı:** düz HTTP üzerinden tarayıcı testi yapılmadı.
+
+### FND-026 · P3 · Güvenlik ağı · FIXED
+Servislerin öngörmediği bir DB kısıt ihlali (IntegrityError) 500 dönüyordu. Artık ayrıntı sızdırmadan 409 dönüyor.
