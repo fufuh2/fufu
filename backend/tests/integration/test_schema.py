@@ -23,4 +23,10 @@ def test_append_only_triggers_present(session: Session) -> None:
     rows = session.execute(
         text("SELECT tgrelid::regclass::text FROM pg_trigger WHERE tgname LIKE '%append_only'")
     ).scalars()
-    assert {"stock_movements", "audit_events"} <= set(rows)
+    assert {
+        "stock_movements",
+        "audit_events",
+        "checklist_runs",
+        "checklist_answers",
+        "handover_notes",
+    } <= set(rows)

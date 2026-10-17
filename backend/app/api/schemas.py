@@ -405,3 +405,168 @@ class InvoiceOut(BaseModel):
     received_value: Decimal
     difference: Decimal
     status: str
+
+
+class ChecklistItemSchema(Strict):
+    label: Annotated[str, Field(min_length=1, max_length=300)]
+    answer_type: Annotated[str, Field(pattern="^(check|number)$")]
+    unit: Annotated[str, Field(max_length=16)] | None = None
+    min_value: Annotated[Decimal, Field(ge=-1000000, le=1000000, decimal_places=3)] | None = None
+    max_value: Annotated[Decimal, Field(ge=-1000000, le=1000000, decimal_places=3)] | None = None
+    evidence_required: bool = False
+
+
+class ChecklistTemplateIn(Strict):
+    name: Name
+    kind: Annotated[str, Field(max_length=16)]
+    frequency: Annotated[str, Field(pattern="^(daily|adhoc)$")] = "daily"
+    items: Annotated[list[ChecklistItemSchema], Field(min_length=1, max_length=200)]
+
+
+class ChecklistItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    position: int
+    label: str
+    answer_type: str
+    unit: str | None
+    min_value: Decimal | None
+    max_value: Decimal | None
+    evidence_required: bool
+
+
+class ChecklistTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    kind: str
+    frequency: str
+    is_active: bool
+    items: list[ChecklistItemOut] = []
+
+
+class ActivePatch(Strict):
+    is_active: bool
+
+
+class AnswerSchema(Strict):
+    item_id: int
+    checked: bool | None = None
+    value: Annotated[Decimal, Field(ge=-1000000, le=1000000, decimal_places=3)] | None = None
+    evidence_ref: Annotated[str, Field(max_length=500)] | None = None
+    note: Annotated[str, Field(max_length=500)] | None = None
+
+
+class ChecklistRunIn(Strict):
+    template_id: uuid.UUID
+    performed_at: datetime | None = None
+    corrects_run_id: uuid.UUID | None = None
+    correction_reason: Annotated[str, Field(max_length=500)] | None = None
+    answers: Annotated[list[AnswerSchema], Field(min_length=1, max_length=200)]
+
+
+class AnswerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    item_id: int
+    checked: bool | None
+    value: Decimal | None
+    passed: bool
+    evidence_ref: str | None
+    note: str | None
+
+
+class ChecklistRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    template_id: uuid.UUID
+    performed_by: uuid.UUID
+    performed_at: datetime
+    passed: bool
+    corrects_run_id: uuid.UUID | None
+    correction_reason: str | None
+    answers: list[AnswerOut] = []
+
+
+class NonconformityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    description: str
+    responsible_user_id: uuid.UUID | None
+    due_at: datetime | None
+    status: str
+    corrective_action: str | None
+    resolved_at: datetime | None
+
+
+class NcAssignIn(Strict):
+    responsible_user_id: uuid.UUID
+    due_at: datetime
+
+
+class NcResolveIn(Strict):
+    corrective_action: Annotated[str, Field(min_length=1, max_length=1000)]
+
+
+class ShiftIn(Strict):
+    user_id: uuid.UUID
+    starts_at: datetime
+    ends_at: datetime
+    note: Annotated[str, Field(max_length=300)] | None = None
+
+
+class ShiftOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    user_id: uuid.UUID
+    starts_at: datetime
+    ends_at: datetime
+    note: str | None
+    cancelled_at: datetime | None
+
+
+class AttendanceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    user_id: uuid.UUID
+    clock_in_at: datetime
+    clock_out_at: datetime | None
+
+
+class AttendanceCorrectionIn(Strict):
+    clock_in_at: datetime
+    clock_out_at: datetime | None = None
+    reason: Annotated[str, Field(min_length=1, max_length=500)]
+
+
+class TaskIn(Strict):
+    title: Annotated[str, Field(min_length=1, max_length=300)]
+    due_at: datetime | None = None
+    assigned_to: uuid.UUID | None = None
+
+
+class TaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    title: str
+    due_at: datetime | None
+    assigned_to: uuid.UUID | None
+    status: str
+    completed_by: uuid.UUID | None
+    completed_at: datetime | None
+
+
+class HandoverIn(Strict):
+    note: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+class HandoverOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    author_id: uuid.UUID
+    note: str
+    created_at: datetime

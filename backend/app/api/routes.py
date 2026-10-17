@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Response, status
@@ -11,7 +12,17 @@ from app.config import load_settings
 from app.domain.permissions import Perm
 from app.models import Item, Product, StockMovement
 from app.security import issue_token
-from app.services import admin, catalog, inventory, orders, purchasing, reports, transfers
+from app.services import (
+    admin,
+    catalog,
+    inventory,
+    orders,
+    purchasing,
+    quality,
+    reports,
+    transfers,
+    workforce,
+)
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -510,3 +521,213 @@ def record_invoice(
     po_id: uuid.UUID, body: s.InvoiceIn, actor: ActorDep, session: SessionDep
 ) -> Any:
     return purchasing.record_invoice(session, actor, po_id, body.invoice_no, body.amount)
+
+
+From = Annotated[datetime, Query(alias="from")]
+To = Annotated[datetime, Query(alias="to")]
+
+
+# --- quality --------------------------------------------------------------------------------
+
+
+def _template_out(session: SessionDep, t: Any) -> s.ChecklistTemplateOut:
+    out = s.ChecklistTemplateOut.model_validate(t)
+    out.items = [
+        s.ChecklistItemOut.model_validate(i) for i in quality.template_items(session, t.id)
+    ]
+    return out
+
+
+def _run_out(session: SessionDep, r: Any) -> s.ChecklistRunOut:
+    out = s.ChecklistRunOut.model_validate(r)
+    out.answers = [s.AnswerOut.model_validate(a) for a in quality.run_answers(session, r.id)]
+    return out
+
+
+@router.post("/checklist-templates", response_model=s.ChecklistTemplateOut, status_code=201)
+def create_template(body: s.ChecklistTemplateIn, actor: ActorDep, session: SessionDep) -> Any:
+    t = quality.create_template(
+        session,
+        actor,
+        name=body.name,
+        kind=body.kind,
+        frequency=body.frequency,
+        items=[quality.TemplateItemIn(**i.model_dump()) for i in body.items],
+    )
+    return _template_out(session, t)
+
+
+@router.get("/checklist-templates", response_model=list[s.ChecklistTemplateOut])
+def list_templates(actor: ActorDep, session: SessionDep) -> Any:
+    return [_template_out(session, t) for t in quality.list_templates(session, actor)]
+
+
+@router.patch("/checklist-templates/{template_id}", response_model=s.ChecklistTemplateOut)
+def update_template(
+    template_id: uuid.UUID, body: s.ActivePatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return _template_out(
+        session, quality.set_template_active(session, actor, template_id, body.is_active)
+    )
+
+
+@router.post(
+    "/branches/{branch_id}/checklist-runs", response_model=s.ChecklistRunOut, status_code=201
+)
+def record_run(
+    branch_id: uuid.UUID, body: s.ChecklistRunIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    run = quality.record_run(
+        session,
+        actor,
+        branch_id,
+        body.template_id,
+        [quality.AnswerIn(**a.model_dump()) for a in body.answers],
+        body.performed_at,
+        body.corrects_run_id,
+        body.correction_reason,
+    )
+    return _run_out(session, run)
+
+
+@router.get("/branches/{branch_id}/checklist-runs", response_model=list[s.ChecklistRunOut])
+def list_runs(
+    branch_id: uuid.UUID, actor: ActorDep, session: SessionDep, start: From, end: To
+) -> Any:
+    return [_run_out(session, r) for r in quality.list_runs(session, actor, branch_id, start, end)]
+
+
+@router.get("/branches/{branch_id}/nonconformities", response_model=list[s.NonconformityOut])
+def list_ncs(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    status: Annotated[str | None, Query(pattern="^(open|resolved)$")] = None,
+) -> Any:
+    return quality.list_nonconformities(session, actor, branch_id, status)
+
+
+@router.post("/nonconformities/{nc_id}/assign", response_model=s.NonconformityOut)
+def assign_nc(nc_id: uuid.UUID, body: s.NcAssignIn, actor: ActorDep, session: SessionDep) -> Any:
+    return quality.assign_nonconformity(
+        session, actor, nc_id, body.responsible_user_id, body.due_at
+    )
+
+
+@router.post("/nonconformities/{nc_id}/resolve", response_model=s.NonconformityOut)
+def resolve_nc(nc_id: uuid.UUID, body: s.NcResolveIn, actor: ActorDep, session: SessionDep) -> Any:
+    return quality.resolve_nonconformity(session, actor, nc_id, body.corrective_action)
+
+
+@router.get("/branches/{branch_id}/reports/quality")
+def quality_report(
+    branch_id: uuid.UUID, actor: ActorDep, session: SessionDep, start: From, end: To
+) -> Any:
+    return quality.score(session, actor, branch_id, start, end)
+
+
+# --- workforce ------------------------------------------------------------------------------
+
+
+@router.post("/branches/{branch_id}/shifts", response_model=s.ShiftOut, status_code=201)
+def create_shift(
+    branch_id: uuid.UUID, body: s.ShiftIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return workforce.create_shift(
+        session, actor, branch_id, body.user_id, body.starts_at, body.ends_at, body.note
+    )
+
+
+@router.get("/branches/{branch_id}/shifts", response_model=list[s.ShiftOut])
+def list_shifts(
+    branch_id: uuid.UUID, actor: ActorDep, session: SessionDep, start: From, end: To
+) -> Any:
+    return workforce.list_shifts(session, actor, branch_id, start, end)
+
+
+@router.post("/shifts/{shift_id}/cancel", response_model=s.ShiftOut)
+def cancel_shift(shift_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.cancel_shift(session, actor, shift_id)
+
+
+@router.post(
+    "/branches/{branch_id}/attendance/clock-in", response_model=s.AttendanceOut, status_code=201
+)
+def clock_in(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.clock_in(session, actor, branch_id)
+
+
+@router.post("/attendance/clock-out", response_model=s.AttendanceOut)
+def clock_out(actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.clock_out(session, actor)
+
+
+@router.patch("/attendance/{attendance_id}", response_model=s.AttendanceOut)
+def correct_attendance(
+    attendance_id: uuid.UUID, body: s.AttendanceCorrectionIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return workforce.correct_attendance(
+        session, actor, attendance_id, body.clock_in_at, body.clock_out_at, body.reason
+    )
+
+
+@router.get("/branches/{branch_id}/attendance", response_model=list[s.AttendanceOut])
+def list_attendance(
+    branch_id: uuid.UUID, actor: ActorDep, session: SessionDep, start: From, end: To
+) -> Any:
+    return workforce.list_attendance(session, actor, branch_id, start, end)
+
+
+@router.get("/branches/{branch_id}/reports/hours")
+def hours_report(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    start: From,
+    end: To,
+    weekly_limit_hours: Annotated[Decimal, Query(gt=0, le=168)] = Decimal("45"),
+    daily_limit_hours: Annotated[Decimal, Query(gt=0, le=24)] = Decimal("11"),
+) -> Any:
+    return workforce.hours_report(
+        session, actor, branch_id, start, end, weekly_limit_hours, daily_limit_hours
+    )
+
+
+@router.post("/branches/{branch_id}/tasks", response_model=s.TaskOut, status_code=201)
+def create_task(branch_id: uuid.UUID, body: s.TaskIn, actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.create_task(
+        session, actor, branch_id, body.title, body.due_at, body.assigned_to
+    )
+
+
+@router.get("/branches/{branch_id}/tasks", response_model=list[s.TaskOut])
+def list_tasks(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    status: Annotated[str | None, Query(pattern="^(open|done|cancelled)$")] = None,
+) -> Any:
+    return workforce.list_tasks(session, actor, branch_id, status)
+
+
+@router.get("/branches/{branch_id}/reports/tasks")
+def task_report(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    actor.require(Perm.REPORT_READ)
+    return workforce.task_summary(session, actor, branch_id)
+
+
+@router.post("/tasks/{task_id}/complete", response_model=s.TaskOut)
+def complete_task(task_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.complete_task(session, actor, task_id)
+
+
+@router.post("/branches/{branch_id}/handovers", response_model=s.HandoverOut, status_code=201)
+def add_handover(
+    branch_id: uuid.UUID, body: s.HandoverIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return workforce.add_handover(session, actor, branch_id, body.note)
+
+
+@router.get("/branches/{branch_id}/handovers", response_model=list[s.HandoverOut])
+def list_handovers(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return workforce.list_handovers(session, actor, branch_id)

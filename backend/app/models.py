@@ -498,3 +498,203 @@ class PurchaseInvoice(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     recorded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     recorded_at: Mapped[datetime] = _now()
+
+
+# --- quality --------------------------------------------------------------------------------
+
+CHECKLIST_KINDS = ("opening", "closing", "hygiene", "temperature", "equipment", "oil", "expiry")
+
+
+class ChecklistTemplate(Base):
+    __tablename__ = "checklist_templates"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name"),
+        CheckConstraint(
+            "kind IN ('" + "','".join(CHECKLIST_KINDS) + "')", name="ck_checklist_kind"
+        ),
+        CheckConstraint("frequency IN ('daily','adhoc')", name="ck_checklist_frequency"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    frequency: Mapped[str] = mapped_column(String(8), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class ChecklistItem(Base):
+    __tablename__ = "checklist_items"
+    __table_args__ = (
+        CheckConstraint("answer_type IN ('check','number')", name="ck_checklist_item_type"),
+        CheckConstraint(
+            "answer_type = 'number' OR (min_value IS NULL AND max_value IS NULL)",
+            name="ck_checklist_item_range_only_numbers",
+        ),
+        CheckConstraint(
+            "min_value IS NULL OR max_value IS NULL OR min_value <= max_value",
+            name="ck_checklist_item_range",
+        ),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("checklist_templates.id"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(String(300), nullable=False)
+    answer_type: Mapped[str] = mapped_column(String(8), nullable=False)
+    unit: Mapped[str | None] = mapped_column(String(16))
+    min_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    max_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    evidence_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ChecklistRun(Base):
+    """A completed checklist. Append-only (DB trigger): a correction is a new run that
+    references the one it corrects, with a reason."""
+
+    __tablename__ = "checklist_runs"
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("checklist_templates.id"), nullable=False
+    )
+    performed_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    performed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    corrects_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("checklist_runs.id"))
+    correction_reason: Mapped[str | None] = mapped_column(String(500))
+    recorded_at: Mapped[datetime] = _now()
+    __table_args__ = (
+        CheckConstraint(
+            "(corrects_run_id IS NULL) = (correction_reason IS NULL)",
+            name="ck_checklist_run_correction",
+        ),
+        Index("ix_checklist_runs_branch_time", "branch_id", "performed_at"),
+    )
+
+
+class ChecklistAnswer(Base):
+    __tablename__ = "checklist_answers"
+    __table_args__ = (
+        UniqueConstraint("run_id", "item_id"),
+        CheckConstraint(
+            "(checked IS NULL) <> (value IS NULL)", name="ck_checklist_answer_one_value"
+        ),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("checklist_runs.id"), nullable=False, index=True
+    )
+    item_id: Mapped[int] = mapped_column(ForeignKey("checklist_items.id"), nullable=False)
+    checked: Mapped[bool | None] = mapped_column(Boolean)
+    value: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    evidence_ref: Mapped[str | None] = mapped_column(String(500))
+    note: Mapped[str | None] = mapped_column(String(500))
+
+
+class Nonconformity(Base):
+    __tablename__ = "nonconformities"
+    __table_args__ = (
+        CheckConstraint("status IN ('open','resolved')", name="ck_nc_status"),
+        CheckConstraint(
+            "(status = 'resolved') = (resolved_at IS NOT NULL AND corrective_action IS NOT NULL)",
+            name="ck_nc_resolution",
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    answer_id: Mapped[int | None] = mapped_column(ForeignKey("checklist_answers.id"))
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    responsible_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    corrective_action: Mapped[str | None] = mapped_column(String(1000))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _now()
+
+
+# --- workforce ------------------------------------------------------------------------------
+
+
+class Shift(Base):
+    __tablename__ = "shifts"
+    __table_args__ = (
+        CheckConstraint("ends_at > starts_at", name="ck_shift_times"),
+        CheckConstraint("ends_at - starts_at <= interval '24 hours'", name="ck_shift_length"),
+        Index("ix_shifts_user_time", "user_id", "starts_at"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+    __table_args__ = (
+        CheckConstraint(
+            "clock_out_at IS NULL OR clock_out_at > clock_in_at", name="ck_attendance_times"
+        ),
+        # At most one open clock-in per user.
+        Index(
+            "uq_attendance_open",
+            "user_id",
+            unique=True,
+            postgresql_where=text("clock_out_at IS NULL"),
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    clock_in_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    clock_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint("status IN ('open','done','cancelled')", name="ck_task_status"),
+        CheckConstraint(
+            "(status = 'done') = (completed_at IS NOT NULL)", name="ck_task_completion"
+        ),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    completed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()
+
+
+class HandoverNote(Base):
+    """Shift handover. Append-only (DB trigger)."""
+
+    __tablename__ = "handover_notes"
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    note: Mapped[str] = mapped_column(String(2000), nullable=False)
+    created_at: Mapped[datetime] = _now()
