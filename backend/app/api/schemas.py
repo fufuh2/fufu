@@ -570,3 +570,66 @@ class HandoverOut(BaseModel):
     author_id: uuid.UUID
     note: str
     created_at: datetime
+
+
+class IntegrationIn(Strict):
+    name: Name
+    branch_id: uuid.UUID
+
+
+class IntegrationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    branch_id: uuid.UUID
+    name: str
+    kind: str
+    secret_version: int
+    is_active: bool
+
+
+class IntegrationSecretOut(BaseModel):
+    integration: IntegrationOut
+    # Shown on create and rotate only; it can be rotated, never read back.
+    signing_secret: str
+
+
+class MappingsIn(Strict):
+    mappings: Annotated[
+        dict[Annotated[str, Field(min_length=1, max_length=64)], uuid.UUID],
+        Field(min_length=1, max_length=1000),
+    ]
+
+
+class MappingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    external_code: str
+    product_id: uuid.UUID
+
+
+class PosLine(Strict):
+    code: Annotated[str, Field(min_length=1, max_length=64)]
+    quantity: Annotated[int, Field(gt=0, le=10000)]
+    discount: Annotated[Decimal, Field(ge=0, le=Decimal("10000000"), decimal_places=2)] = Decimal(
+        "0"
+    )
+
+
+class PosPayload(Strict):
+    event: Annotated[str, Field(pattern="^order\\.(created|cancelled)$")]
+    external_id: Annotated[str, Field(min_length=1, max_length=128)]
+    ordered_at: datetime | None = None
+    reason: Annotated[str, Field(max_length=500)] | None = None
+    lines: Annotated[list[PosLine], Field(max_length=200)] = []
+
+
+class PosEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    external_id: str
+    event: str
+    status: str
+    error: str | None
+    order_id: uuid.UUID | None
+    attempts: int
+    received_at: datetime
+    processed_at: datetime | None

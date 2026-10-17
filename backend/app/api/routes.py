@@ -3,18 +3,22 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, Query, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
+from fastapi.concurrency import run_in_threadpool
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.api import schemas as s
 from app.api.deps import ActorDep, SessionDep
 from app.config import load_settings
 from app.domain.permissions import Perm
+from app.errors import Invalid
 from app.models import Item, Product, StockMovement
 from app.security import issue_token
 from app.services import (
     admin,
     catalog,
+    integrations,
     inventory,
     orders,
     purchasing,
@@ -731,3 +735,86 @@ def add_handover(
 @router.get("/branches/{branch_id}/handovers", response_model=list[s.HandoverOut])
 def list_handovers(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
     return workforce.list_handovers(session, actor, branch_id)
+
+
+# --- integrations ---------------------------------------------------------------------------
+
+
+@router.post("/integrations", response_model=s.IntegrationSecretOut, status_code=201)
+def create_integration(body: s.IntegrationIn, actor: ActorDep, session: SessionDep) -> Any:
+    integ, secret = integrations.create_integration(session, actor, body.name, body.branch_id)
+    return {"integration": integ, "signing_secret": secret}
+
+
+@router.post("/integrations/{integration_id}/rotate-secret", response_model=s.IntegrationSecretOut)
+def rotate_integration_secret(
+    integration_id: uuid.UUID, actor: ActorDep, session: SessionDep
+) -> Any:
+    secret = integrations.rotate_secret(session, actor, integration_id)
+    return {
+        "integration": integrations._get(session, actor, integration_id),
+        "signing_secret": secret,
+    }
+
+
+@router.patch("/integrations/{integration_id}", response_model=s.IntegrationOut)
+def update_integration(
+    integration_id: uuid.UUID, body: s.ActivePatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return integrations.set_active(session, actor, integration_id, body.is_active)
+
+
+@router.put("/integrations/{integration_id}/mappings", response_model=list[s.MappingOut])
+def set_mappings(
+    integration_id: uuid.UUID, body: s.MappingsIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return integrations.set_mappings(session, actor, integration_id, body.mappings)
+
+
+@router.get("/integrations/{integration_id}/events", response_model=list[s.PosEventOut])
+def list_integration_events(
+    integration_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    status: Annotated[str | None, Query(pattern="^(processed|failed)$")] = None,
+) -> Any:
+    return integrations.list_events(session, actor, integration_id, status)
+
+
+@router.post("/integrations/{integration_id}/events/{event_id}/retry", response_model=s.PosEventOut)
+def retry_integration_event(
+    integration_id: uuid.UUID, event_id: uuid.UUID, actor: ActorDep, session: SessionDep
+) -> Any:
+    event, _ = integrations.retry(session, actor, integration_id, event_id)
+    return event
+
+
+@router.post("/webhooks/pos/{integration_id}", response_model=s.PosEventOut)
+async def pos_webhook(
+    integration_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    x_timestamp: Annotated[str | None, Header()] = None,
+    x_signature: Annotated[str | None, Header()] = None,
+) -> Any:
+    """Signed POS delivery (no user token). 200 = processed (or duplicate), 422 = stored as
+    failed for retry, 401 = bad signature/timestamp."""
+    body = await request.body()
+    if len(body) > 256 * 1024:
+        raise Invalid("payload too large")
+    integ = await run_in_threadpool(
+        integrations.authenticate_delivery, session, integration_id, x_timestamp, x_signature, body
+    )
+    try:
+        payload = s.PosPayload.model_validate_json(body)
+    except ValidationError as exc:
+        raise Invalid("malformed payload") from exc
+    if payload.event == "order.created" and (not payload.lines or payload.ordered_at is None):
+        raise Invalid("order.created needs lines and ordered_at")
+    event, duplicate = await run_in_threadpool(
+        integrations.process, session, integ, payload.model_dump(mode="json")
+    )
+    if duplicate:
+        response.headers["Idempotent-Replayed"] = "true"
+    return event

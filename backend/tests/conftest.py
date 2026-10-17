@@ -19,6 +19,7 @@ TEST_DB = os.environ.get(
 os.environ["OPSX_DATABASE_URL"] = TEST_DB
 os.environ.setdefault("OPSX_JWT_SECRET", "test-secret-" + "x" * 40)
 os.environ.setdefault("OPSX_ENV", "test")
+os.environ.setdefault("OPSX_INTEGRATION_KEY", "test-integration-key-" + "y" * 40)
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402

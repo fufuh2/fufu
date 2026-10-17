@@ -698,3 +698,59 @@ class HandoverNote(Base):
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     note: Mapped[str] = mapped_column(String(2000), nullable=False)
     created_at: Mapped[datetime] = _now()
+
+
+# --- integrations ---------------------------------------------------------------------------
+
+
+class Integration(Base):
+    """Inbound POS webhook source. Its signing secret is derived from OPSX_INTEGRATION_KEY,
+    the integration id and secret_version, so no secret is stored in the database."""
+
+    __tablename__ = "integrations"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name"),
+        CheckConstraint("kind IN ('pos_generic')", name="ck_integration_kind"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    service_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    secret_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class PosProductMapping(Base):
+    __tablename__ = "pos_product_mappings"
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("integrations.id"), primary_key=True
+    )
+    external_code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id"), nullable=False)
+
+
+class PosEvent(Base):
+    """Inbox: every delivery is stored once per (integration, external_id, event)."""
+
+    __tablename__ = "pos_events"
+    __table_args__ = (
+        UniqueConstraint("integration_id", "external_id", "event", name="uq_pos_event"),
+        CheckConstraint("event IN ('order.created','order.cancelled')", name="ck_pos_event_type"),
+        CheckConstraint("status IN ('processed','failed')", name="ck_pos_event_status"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("integrations.id"), nullable=False, index=True
+    )
+    external_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    event: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    error: Mapped[str | None] = mapped_column(String(500))
+    order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id"))
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    received_at: Mapped[datetime] = _now()
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
