@@ -7,17 +7,14 @@
 | Render DB | `opsx-db`, PostgreSQL 16, Frankfurt, **free: 2026-11-16'da sona eriyor** (Render API'nin döndürdüğü tarih). |
 | Render web | `opsx-api` → https://opsx-api.onrender.com, free, Frankfurt, sağlık kontrolü `/readyz`, otomatik deploy açık. **Kaynak GitHub** (`fufuh2/fufu`, dal `ccr-5ace6090-44fj25`): Render hesabı GitLab'a bağlı değil, private GitLab reposunu okuyamıyor. |
 | Sırlar | `OPSX_JWT_SECRET` ve `OPSX_INTEGRATION_KEY` Render'da üretildi; git'te yok. |
-| İlk sahip | **Henüz oluşturulmadı**; aşağıdaki "Yapman gerekenler" bölümüne bak. |
+| İlk sahip | Oluşturuldu (işletme: Taffburger, rol: owner). Bootstrap değişkenleri Render'dan silindi ve yeniden deploy edildi. **İlk parolayı Hesabım → Parola değiştir ile hemen değiştir.** |
 
-## Yapman gerekenler (yaklaşık 5 dakika)
-1. Render → `opsx-api` → **Settings → Start Command**'ı şununla değiştir:
-   `alembic upgrade head && python -m app.cli bootstrap-if-empty && uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'`
-2. **Environment** bölümüne şunları ekle: `OPSX_BOOTSTRAP_TENANT` (işletme adı), `OPSX_BOOTSTRAP_OWNER_EMAIL`,
-   `OPSX_BOOTSTRAP_OWNER_PASSWORD` (en az 12 karakter, kendin belirle). Ardından **Save, rebuild and deploy**.
-3. https://opsx-api.onrender.com/ui/ adresinden giriş yap. Sonra bu üç değişkeni **sil**. (İşletme
-   varken komut zaten bir şey yapmaz, ama parola ortam değişkeninde kalmamalı.)
-4. Kaynağı GitLab'a çevirmek istersen: Render → Account Settings → Git Providers → GitLab'ı bağla.
-   Sonra `opsx-api` → Settings → Repository'yi `gitlab.com/taffburger9/fufu`, dalı `main` yap.
+## Kalan işler
+1. İlk parolayı arayüzden değiştir (Hesabım → Parola değiştir).
+2. Kaynağı GitLab'a çevirmek istersen: Render → Account Settings → Git Providers → GitLab'ı bağla,
+   sonra `opsx-api` → Settings → Repository: `gitlab.com/taffburger9/fufu`, dal `main`.
+3. GitLab CI için hesap doğrulamasını (shared runner) tamamla.
+4. Gerçek veri girmeden önce: free DB 2026-11-16'da sona eriyor → ücretli plan + yedek.
 5. Sohbete yazılan iki token'ı iptal et ve yenile.
 
 Repo deploy için hazır:
