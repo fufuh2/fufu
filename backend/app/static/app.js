@@ -115,7 +115,7 @@ async function bootstrapSession() {
   const sel = document.getElementById("branch-select");
   sel.replaceChildren(...state.branches.map((b) => el("option", { value: b.id, selected: b.id === state.branch }, b.name)));
   document.getElementById("whoami").textContent = `${state.me.email} · ${state.me.role}`;
-  for (const a of document.querySelectorAll("#nav a")) a.parentElement.hidden = !can(a.dataset.perm);
+  for (const a of document.querySelectorAll("#nav a")) a.parentElement.hidden = !!a.dataset.perm && !can(a.dataset.perm);
   document.getElementById("top").hidden = false;
   return true;
 }
@@ -401,9 +401,30 @@ async function renderTasks() {
     } }, "Tamamlandı")]]), "Açık görev yok."));
 }
 
+async function renderAccount() {
+  const current = el("input", { type: "password", name: "current", required: true, autocomplete: "current-password" });
+  const next = el("input", { type: "password", name: "new", required: true, minlength: 12, autocomplete: "new-password" });
+  const again = el("input", { type: "password", name: "again", required: true, minlength: 12, autocomplete: "new-password" });
+  const form = el("form", { class: "card login", onsubmit: async (ev) => {
+    ev.preventDefault();
+    if (next.value !== again.value) { message("Yeni parolalar aynı değil."); return; }
+    const res = await api("POST", "/auth/password", { current_password: current.value, new_password: next.value });
+    if (!res.ok) { message(res.status === 401 ? "Mevcut parola hatalı." : res.error); return; }
+    // The change revoked every token, including this one.
+    logout("Parolanız değişti. Yeni parolanızla tekrar giriş yapın.");
+  } },
+    el("h2", {}, "Parola değiştir"),
+    el("label", {}, "Mevcut parola", current),
+    el("label", {}, "Yeni parola (en az 12 karakter)", next),
+    el("label", {}, "Yeni parola (tekrar)", again),
+    el("button", { type: "submit" }, "Parolayı değiştir"));
+  main().replaceChildren(el("h1", {}, "Hesabım"), el("p", {}, `${state.me.email} · ${state.me.role}`), form);
+}
+
 // ---- router --------------------------------------------------------------------------------
 const routes = { "#/dashboard": renderDashboard, "#/orders": renderOrders, "#/stock": renderStock,
-  "#/reports": renderReports, "#/quality": renderQuality, "#/tasks": renderTasks };
+  "#/reports": renderReports, "#/quality": renderQuality, "#/tasks": renderTasks,
+  "#/account": renderAccount };
 
 async function route() {
   const hash = location.hash || "#/dashboard";

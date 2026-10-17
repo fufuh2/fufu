@@ -21,6 +21,12 @@ Token'ı remote URL'ye yazma. Git, parola sorduğunda token'ı oradan gir.
 4. İlk deploy: build → `alembic upgrade head` → uvicorn → `/readyz` sağlık kontrolü.
 
 ## 3. İlk işletme sahibini oluştur
+**Shell'siz (free plan) yol:** Servise geçici olarak `OPSX_BOOTSTRAP_TENANT`, `OPSX_BOOTSTRAP_OWNER_EMAIL`,
+`OPSX_BOOTSTRAP_OWNER_PASSWORD` ekle ve deploy et. Başlatma komutundaki `bootstrap-if-empty`, veritabanında
+işletme yoksa sahibi oluşturur; varsa hiçbir şey yapmaz. Girişi doğruladıktan sonra üç değişkeni **sil**
+ve arayüzde **Hesabım → Parola değiştir** ile parolayı değiştir.
+
+**Yerel bağlantı yolu (alternatif):**
 Render'da `opsx-db` → **Connect → External Database URL**'yi kopyala. Ardından yerelde:
 ```bash
 cd backend

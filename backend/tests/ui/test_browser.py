@@ -268,3 +268,19 @@ def test_quality_checklist_through_ui(page, client, session: Session) -> None:
     sync_api.expect(page.locator("main")).to_contain_text("Açık uygunsuzluk yok")
     assert session.execute(text("SELECT status FROM nonconformities")).scalar() == "resolved"
     assert page.errors == []
+
+
+def test_password_change_through_ui(page, client, session: Session) -> None:
+    api = new_tenant(session, client)
+    setup_kitchen(api)
+    email = _owner_email(session)
+    _login(page, email)
+    page.get_by_role("link", name="Hesabım").click()
+    page.get_by_label("Mevcut parola").fill(PASSWORD)
+    page.get_by_label("Yeni parola (en az 12 karakter)").fill("a-brand-new-password")
+    page.get_by_label("Yeni parola (tekrar)").fill("a-brand-new-password")
+    page.get_by_role("button", name="Parolayı değiştir").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Parolanız değişti")
+    sync_api.expect(page.get_by_role("heading", name="Giriş")).to_be_visible()
+    _login(page, email, "a-brand-new-password")
+    sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
