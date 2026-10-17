@@ -134,7 +134,7 @@ def variance(
             a["waste_qty"] -= q
             a["waste_cost"] -= c
             a["waste_by_reason"][reason] = str(-q)
-        elif mtype == "count_adjustment":
+        elif mtype in ("count_adjustment", "late_sale_offset"):
             a["adjust_qty"] += q
             a["adjust_cost"] += c
     items = {

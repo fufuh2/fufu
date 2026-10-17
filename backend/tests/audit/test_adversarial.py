@@ -372,11 +372,6 @@ def test_database_url_has_no_builtin_default(monkeypatch) -> None:
         load_settings()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FND-012 open: a sale dated before the last count is consumed again "
-    "(e.g. POS offline sync). Not fixed: rejecting it would lose sales data.",
-)
 def test_backdated_sale_before_count_does_not_double_consume(client, session: Session) -> None:
     api = new_tenant(session, client)
     k = setup_kitchen(api)
@@ -397,4 +392,19 @@ def test_backdated_sale_before_count_does_not_double_consume(client, session: Se
         headers={"Idempotency-Key": "late-sync"},
     )
     assert res.status_code == 201
-    assert stock_of(api, b, k["bun"]) == 29  # physical stock; actual result is 28
+    assert stock_of(api, b, k["bun"]) == 29  # FND-012: matches the physical count
+    now = datetime.now(UTC)
+    period = {
+        "from": (now - timedelta(hours=1)).isoformat(),
+        "to": (now + timedelta(hours=1)).isoformat(),
+    }
+    bun = next(
+        x
+        for x in api.get(f"/branches/{b}/reports/variance", params=period).json()["lines"]
+        if x["sku"] == "BUN"
+    )
+    # The missing bun is explained by the sale, not left as an unexplained difference.
+    assert (bun["theoretical_qty"], bun["unexplained_qty"]) == ("1.0000", "0.0000")
+    order_id = res.json()["id"]
+    assert api.post(f"/orders/{order_id}/cancel", {"reason": "void"}).status_code == 200
+    assert stock_of(api, b, k["bun"]) == 29  # cancel reverses consumption and offset together

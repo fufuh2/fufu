@@ -65,6 +65,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Bumped to revoke every token issued for this user (logout-all, password or role change).
+    token_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = _now()
 
 
@@ -173,7 +177,18 @@ class StockBalance(Base):
     updated_at: Mapped[datetime] = _now()
 
 
-MOVEMENT_TYPES = ("receipt", "sale_consumption", "sale_reversal", "waste", "count_adjustment")
+MOVEMENT_TYPES = (
+    "receipt",
+    "sale_consumption",
+    "sale_reversal",
+    "waste",
+    "count_adjustment",
+    # +qty when a sale dated before a posted count arrives after it (the count already
+    # removed that stock); occurred_at is the count's time so it nets with that count.
+    "late_sale_offset",
+    "transfer_out",
+    "transfer_in",
+)
 WASTE_REASONS = (
     "spoilage_expiry",
     "prep_loss",

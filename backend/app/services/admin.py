@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -61,9 +61,15 @@ def bootstrap_tenant(
     return tenant, owner
 
 
-def load_actor(session: Session, user_id: uuid.UUID) -> Actor | None:
+def load_actor(
+    session: Session, user_id: uuid.UUID, token_version: int | None = None
+) -> Actor | None:
+    """None for unknown/inactive users and for tokens revoked by a version bump.
+    `token_version=None` is for trusted in-process callers (CLI, tests), not HTTP."""
     user = session.get(User, user_id)
     if user is None or not user.is_active:
+        return None
+    if token_version is not None and token_version != user.token_version:
         return None
     role = Role(user.role)
     branch_ids = None
@@ -207,3 +213,132 @@ def authenticate(session: Session, email: str, password: str) -> User:
     )
     session.commit()
     return user
+
+
+def _get_user(session: Session, actor: Actor, user_id: uuid.UUID) -> User:
+    user = session.scalar(
+        select(User).where(User.id == user_id, User.tenant_id == actor.tenant_id).with_for_update()
+    )
+    if user is None:
+        raise NotFound("user not found")
+    return user
+
+
+def update_user(
+    session: Session,
+    actor: Actor,
+    user_id: uuid.UUID,
+    *,
+    role: Role | None,
+    branch_ids: list[uuid.UUID] | None,
+    is_active: bool | None,
+) -> User:
+    """Role, branch scope and activation. Any change revokes the user's existing tokens."""
+    actor.require(Perm.USER_MANAGE)
+    user = _get_user(session, actor, user_id)
+    if user.id == actor.user_id and (
+        (role is not None and role != Role(user.role)) or is_active is False
+    ):
+        raise Invalid("you cannot change your own role or deactivate yourself")
+    if role == Role.OWNER and actor.role != Role.OWNER:
+        raise Forbidden("only an owner can grant the owner role")
+    before = {"role": user.role, "is_active": user.is_active}
+    if role is not None:
+        user.role = role.value
+    if is_active is not None:
+        user.is_active = is_active
+    if branch_ids is not None:
+        for bid in branch_ids:
+            if (
+                session.scalar(
+                    select(Branch.id).where(Branch.id == bid, Branch.tenant_id == actor.tenant_id)
+                )
+                is None
+            ):
+                raise NotFound(f"branch {bid} not found")
+        session.execute(delete(UserBranchAccess).where(UserBranchAccess.user_id == user.id))
+        for bid in set(branch_ids):
+            session.add(UserBranchAccess(user_id=user.id, branch_id=bid))
+    if Role(user.role) not in TENANT_WIDE_ROLES:
+        has_branch = session.scalar(
+            select(func.count())
+            .select_from(UserBranchAccess)
+            .where(UserBranchAccess.user_id == user.id)
+        )
+        if not has_branch:
+            raise Invalid("branch-scoped roles need at least one branch")
+    user.token_version += 1
+    audit.record(
+        session,
+        actor,
+        "user.update",
+        "user",
+        user.id,
+        {
+            "before": before,
+            "after": {"role": user.role, "is_active": user.is_active},
+            "branch_ids": sorted(str(b) for b in branch_ids) if branch_ids is not None else None,
+        },
+    )
+    session.commit()
+    return user
+
+
+def change_password(session: Session, actor: Actor, current: str, new: str) -> None:
+    user = _get_user(session, actor, actor.user_id)
+    if not verify_password(user.password_hash, current):
+        raise Unauthorized("current password is wrong")
+    _check_password(new)
+    if verify_password(user.password_hash, new):
+        raise Invalid("new password must differ from the current one")
+    user.password_hash = hash_password(new)
+    user.token_version += 1
+    audit.record(session, actor, "auth.password_change", "user", user.id, {})
+    session.commit()
+
+
+def logout_all(session: Session, actor: Actor) -> None:
+    user = _get_user(session, actor, actor.user_id)
+    user.token_version += 1
+    audit.record(session, actor, "auth.logout_all", "user", user.id, {})
+    session.commit()
+
+
+def update_branch(
+    session: Session,
+    actor: Actor,
+    branch_id: uuid.UUID,
+    *,
+    name: str | None,
+    is_active: bool | None,
+) -> Branch:
+    actor.require(Perm.BRANCH_MANAGE)
+    branch = session.scalar(
+        select(Branch).where(Branch.id == branch_id, Branch.tenant_id == actor.tenant_id)
+    )
+    if branch is None:
+        raise NotFound("branch not found")
+    before = {"name": branch.name, "is_active": branch.is_active}
+    if name is not None:
+        branch.name = name
+    if is_active is not None:
+        branch.is_active = is_active
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        raise Conflict("branch name already exists") from exc
+    audit.record(
+        session,
+        actor,
+        "branch.update",
+        "branch",
+        branch.id,
+        {
+            "branch_id": str(branch.id),
+            "before": before,
+            "after": {"name": branch.name, "is_active": branch.is_active},
+        },
+    )
+    session.commit()
+    return branch

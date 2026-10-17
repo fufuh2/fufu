@@ -13,14 +13,21 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.costing import money
 from app.domain.permissions import Perm
 from app.errors import Conflict, Invalid, NotFound
-from app.models import Order, OrderLine, RecipeLine, StockMovement
+from app.models import (
+    Order,
+    OrderLine,
+    RecipeLine,
+    StockCount,
+    StockCountLine,
+    StockMovement,
+)
 from app.security import Actor
 from app.services import audit
 from app.services.catalog import recipe_at
@@ -142,6 +149,7 @@ def create_order(session: Session, actor: Actor, data: OrderIn) -> tuple[Order, 
         line_usage.append((order_line, per_item))
 
     avg_cost: dict[uuid.UUID, Decimal] = {}
+    late_items: list[str] = []
     for item_id in sorted(usage):
         balance = lock_balance(session, actor.tenant_id, data.branch_id, item_id)
         avg_cost[item_id] = balance.avg_cost
@@ -156,6 +164,25 @@ def create_order(session: Session, actor: Actor, data: OrderIn) -> tuple[Order, 
             ref_type="order",
             ref_id=order.id,
         )
+        # FND-012: a count taken after the sale but before it was recorded already removed
+        # this stock. Put it back at the count's time so the balance matches the physical
+        # count and the variance report nets it against that count's adjustment.
+        counted_after = last_count_after(session, data.branch_id, item_id, ordered_at)
+        if counted_after is not None:
+            late_items.append(str(item_id))
+            apply_movement(
+                session,
+                actor,
+                balance,
+                movement_type="late_sale_offset",
+                delta=usage[item_id],
+                occurred_at=counted_after,
+                allow_negative=True,
+                inbound_unit_cost=avg_cost[item_id],
+                ref_type="order",
+                ref_id=order.id,
+                note="sale dated before a posted count",
+            )
     for order_line, per_item in line_usage:
         if per_item is not None:
             order_line.cost_total = money(
@@ -173,10 +200,25 @@ def create_order(session: Session, actor: Actor, data: OrderIn) -> tuple[Order, 
             "branch_id": str(data.branch_id),
             "net_total": str(order.net_total),
             "lines": len(data.lines),
+            "late_after_count_items": late_items,
         },
     )
     session.commit()
     return order, True
+
+
+def last_count_after(
+    session: Session, branch_id: uuid.UUID, item_id: uuid.UUID, at: datetime
+) -> datetime | None:
+    return session.scalar(
+        select(func.max(StockCount.counted_at))
+        .join(StockCountLine, StockCountLine.count_id == StockCount.id)
+        .where(
+            StockCount.branch_id == branch_id,
+            StockCountLine.item_id == item_id,
+            StockCount.counted_at > at,
+        )
+    )
 
 
 def get_order(session: Session, actor: Actor, order_id: uuid.UUID, *, lock: bool = False) -> Order:
@@ -203,34 +245,48 @@ def cancel_order(session: Session, actor: Actor, order_id: uuid.UUID, reason: st
     order = get_order(session, actor, order_id, lock=True)
     if order.status == "cancelled":
         raise Conflict("order is already cancelled")
-    consumed = list(
+    movements = list(
         session.scalars(
             select(StockMovement)
             .where(
                 StockMovement.ref_type == "order",
                 StockMovement.ref_id == order.id,
-                StockMovement.movement_type == "sale_consumption",
+                StockMovement.movement_type.in_(("sale_consumption", "late_sale_offset")),
             )
-            .order_by(StockMovement.item_id)
+            .order_by(StockMovement.item_id, StockMovement.id)
         )
     )
     when = now()
-    for movement in consumed:
+    for movement in movements:
         balance = lock_balance(session, actor.tenant_id, order.branch_id, movement.item_id)
-        apply_movement(
-            session,
-            actor,
-            balance,
+        if movement.movement_type == "sale_consumption":
             # Economic date of the reversal is the sale date, so period usage nets out.
-            movement_type="sale_reversal",
-            delta=-movement.quantity_base,
-            occurred_at=order.ordered_at,
-            allow_negative=True,
-            inbound_unit_cost=movement.unit_cost,
-            ref_type="order",
-            ref_id=order.id,
-            note=reason,
-        )
+            apply_movement(
+                session,
+                actor,
+                balance,
+                movement_type="sale_reversal",
+                delta=-movement.quantity_base,
+                occurred_at=order.ordered_at,
+                allow_negative=True,
+                inbound_unit_cost=movement.unit_cost,
+                ref_type="order",
+                ref_id=order.id,
+                note=reason,
+            )
+        else:
+            apply_movement(
+                session,
+                actor,
+                balance,
+                movement_type="late_sale_offset",
+                delta=-movement.quantity_base,
+                occurred_at=movement.occurred_at,
+                allow_negative=True,
+                ref_type="order",
+                ref_id=order.id,
+                note=reason,
+            )
     order.status = "cancelled"
     order.cancelled_at = when
     order.cancel_reason = reason

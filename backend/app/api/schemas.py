@@ -25,6 +25,11 @@ class LoginIn(Strict):
     password: Annotated[str, Field(min_length=1, max_length=256)]
 
 
+class PasswordChangeIn(Strict):
+    current_password: Annotated[str, Field(min_length=1, max_length=256)]
+    new_password: Annotated[str, Field(min_length=12, max_length=256)]
+
+
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"  # noqa: S105 - OAuth2 token type, not a secret
@@ -32,6 +37,11 @@ class TokenOut(BaseModel):
 
 class BranchIn(Strict):
     name: Name
+
+
+class BranchPatch(Strict):
+    name: Name | None = None
+    is_active: bool | None = None
 
 
 class BranchOut(BaseModel):
@@ -46,6 +56,12 @@ class UserIn(Strict):
     password: Annotated[str, Field(min_length=12, max_length=256)]
     role: Role
     branch_ids: list[uuid.UUID] = []
+
+
+class UserPatch(Strict):
+    role: Role | None = None
+    branch_ids: list[uuid.UUID] | None = None
+    is_active: bool | None = None
 
 
 class UserOut(BaseModel):
@@ -65,6 +81,13 @@ class ItemIn(Strict):
     conversions: dict[UnitCode, Qty] = {}
 
 
+class ItemPatch(Strict):
+    name: Name | None = None
+    min_stock: NonNegQty | None = None  # explicit null clears the minimum
+    allergens: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = None
+    is_active: bool | None = None
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -80,6 +103,12 @@ class ProductIn(Strict):
     sku: Code
     name: Name
     price: Annotated[Decimal, Field(ge=0, le=Decimal("10000000"), decimal_places=2)]
+
+
+class ProductPatch(Strict):
+    name: Name | None = None
+    price: Annotated[Decimal, Field(ge=0, le=Decimal("10000000"), decimal_places=2)] | None = None
+    is_active: bool | None = None
 
 
 class ProductOut(BaseModel):

@@ -22,8 +22,20 @@ def login(body: s.LoginIn, session: SessionDep) -> s.TokenOut:
     user = admin.authenticate(session, body.email, body.password)
     settings = load_settings()
     return s.TokenOut(
-        access_token=issue_token(user.id, settings.jwt_secret, settings.jwt_ttl_minutes)
+        access_token=issue_token(
+            user.id, user.token_version, settings.jwt_secret, settings.jwt_ttl_minutes
+        )
     )
+
+
+@router.post("/auth/password", status_code=204)
+def change_password(body: s.PasswordChangeIn, actor: ActorDep, session: SessionDep) -> None:
+    admin.change_password(session, actor, body.current_password, body.new_password)
+
+
+@router.post("/auth/logout-all", status_code=204)
+def logout_all(actor: ActorDep, session: SessionDep) -> None:
+    admin.logout_all(session, actor)
 
 
 # --- administration -------------------------------------------------------------------------
@@ -51,6 +63,25 @@ def create_user(body: s.UserIn, actor: ActorDep, session: SessionDep) -> Any:
     )
 
 
+@router.patch("/branches/{branch_id}", response_model=s.BranchOut)
+def update_branch(
+    branch_id: uuid.UUID, body: s.BranchPatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return admin.update_branch(session, actor, branch_id, name=body.name, is_active=body.is_active)
+
+
+@router.patch("/users/{user_id}", response_model=s.UserOut)
+def update_user(user_id: uuid.UUID, body: s.UserPatch, actor: ActorDep, session: SessionDep) -> Any:
+    return admin.update_user(
+        session,
+        actor,
+        user_id,
+        role=body.role,
+        branch_ids=body.branch_ids,
+        is_active=body.is_active,
+    )
+
+
 @router.get("/audit-events", response_model=list[s.AuditOut])
 def list_audit(
     actor: ActorDep, session: SessionDep, limit: Annotated[int, Query(ge=1, le=500)] = 100
@@ -75,10 +106,34 @@ def create_item(body: s.ItemIn, actor: ActorDep, session: SessionDep) -> Any:
     )
 
 
+Limit = Annotated[int, Query(ge=1, le=500)]
+Offset = Annotated[int, Query(ge=0)]
+
+
 @router.get("/items", response_model=list[s.ItemOut])
-def list_items(actor: ActorDep, session: SessionDep) -> Any:
+def list_items(actor: ActorDep, session: SessionDep, limit: Limit = 200, offset: Offset = 0) -> Any:
     actor.require(Perm.STOCK_READ)
-    return session.scalars(select(Item).where(Item.tenant_id == actor.tenant_id).order_by(Item.sku))
+    return session.scalars(
+        select(Item)
+        .where(Item.tenant_id == actor.tenant_id)
+        .order_by(Item.sku)
+        .limit(limit)
+        .offset(offset)
+    )
+
+
+@router.patch("/items/{item_id}", response_model=s.ItemOut)
+def update_item(item_id: uuid.UUID, body: s.ItemPatch, actor: ActorDep, session: SessionDep) -> Any:
+    fields = body.model_dump(exclude_unset=True)
+    return catalog.update_item(
+        session,
+        actor,
+        item_id,
+        name=fields.get("name"),
+        min_stock=fields.get("min_stock", catalog._UNSET),
+        allergens=fields.get("allergens"),
+        is_active=fields.get("is_active"),
+    )
 
 
 @router.post("/products", response_model=s.ProductOut, status_code=201)
@@ -87,10 +142,33 @@ def create_product(body: s.ProductIn, actor: ActorDep, session: SessionDep) -> A
 
 
 @router.get("/products", response_model=list[s.ProductOut])
-def list_products(actor: ActorDep, session: SessionDep) -> Any:
+def list_products(
+    actor: ActorDep, session: SessionDep, limit: Limit = 200, offset: Offset = 0
+) -> Any:
+    actor.require(Perm.STOCK_READ)
     return session.scalars(
-        select(Product).where(Product.tenant_id == actor.tenant_id).order_by(Product.sku)
+        select(Product)
+        .where(Product.tenant_id == actor.tenant_id)
+        .order_by(Product.sku)
+        .limit(limit)
+        .offset(offset)
     )
+
+
+@router.patch("/products/{product_id}", response_model=s.ProductOut)
+def update_product(
+    product_id: uuid.UUID, body: s.ProductPatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return catalog.update_product(
+        session, actor, product_id, name=body.name, price=body.price, is_active=body.is_active
+    )
+
+
+@router.get("/products/{product_id}/cost")
+def product_cost(
+    product_id: uuid.UUID, branch_id: uuid.UUID, actor: ActorDep, session: SessionDep
+) -> Any:
+    return catalog.recipe_cost(session, actor, product_id, branch_id)
 
 
 @router.post("/products/{product_id}/recipes", response_model=s.RecipeOut, status_code=201)

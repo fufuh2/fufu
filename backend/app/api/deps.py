@@ -27,10 +27,10 @@ def current_actor(
     if creds is None:
         raise unauthorized
     try:
-        user_id = decode_token(creds.credentials, load_settings().jwt_secret)
+        user_id, version = decode_token(creds.credentials, load_settings().jwt_secret)
     except (jwt.PyJWTError, ValueError) as exc:
         raise unauthorized from exc
-    actor = load_actor(session, user_id)
+    actor = load_actor(session, user_id, version)
     if actor is None:
         raise unauthorized
     return actor

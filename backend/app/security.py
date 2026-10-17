@@ -26,15 +26,25 @@ def verify_password(password_hash: str | None, password: str) -> bool:
         return False
 
 
-def issue_token(user_id: uuid.UUID, secret: str, ttl_minutes: int) -> str:
+def issue_token(user_id: uuid.UUID, token_version: int, secret: str, ttl_minutes: int) -> str:
     now = datetime.now(UTC)
-    payload = {"sub": str(user_id), "iat": now, "exp": now + timedelta(minutes=ttl_minutes)}
+    payload = {
+        "sub": str(user_id),
+        "ver": token_version,
+        "iat": now,
+        "exp": now + timedelta(minutes=ttl_minutes),
+    }
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
-def decode_token(token: str, secret: str) -> uuid.UUID:
-    payload = jwt.decode(token, secret, algorithms=["HS256"], options={"require": ["exp", "sub"]})
-    return uuid.UUID(payload["sub"])
+def decode_token(token: str, secret: str) -> tuple[uuid.UUID, int]:
+    payload = jwt.decode(
+        token, secret, algorithms=["HS256"], options={"require": ["exp", "sub", "ver"]}
+    )
+    version = payload["ver"]
+    if isinstance(version, bool) or not isinstance(version, int):
+        raise ValueError("invalid token version")
+    return uuid.UUID(payload["sub"]), version
 
 
 @dataclass(frozen=True)
