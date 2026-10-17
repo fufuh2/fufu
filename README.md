@@ -4,6 +4,8 @@
 sayım → fark → maliyet/marj; transfer, satın alma, kalite kontrol, vardiya, POS webhook ve web arayüzü
 (`/ui`). Tamamen açık kaynak bileşenlerle, ücretli servis gerektirmeden çalışır.
 
+Canlı: https://opsx-api.onrender.com/ui/ (kurulum durumu: [docs/DEPLOY.md](docs/DEPLOY.md))
+
 Neyin yapıldığı, neyin yapılmadığı ve kanıtları: **[docs/STATUS.md](docs/STATUS.md)**.
 Son denetim ve canlıya hazırlık kararı: **[docs/audit/RELEASE_READINESS.md](docs/audit/RELEASE_READINESS.md)**.
 
