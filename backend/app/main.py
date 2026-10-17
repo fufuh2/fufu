@@ -1,8 +1,10 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import DataError, IntegrityError
 
@@ -10,6 +12,13 @@ from app.api.routes import router
 from app.config import load_settings
 from app.db import get_engine
 from app.errors import DomainError
+
+STATIC_DIR = Path(__file__).parent / "static"
+# The UI uses no inline scripts/styles and no third-party origins.
+UI_CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+)
 
 log = logging.getLogger("opsx")
 
@@ -25,6 +34,11 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
     app.include_router(router)
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        return RedirectResponse("/ui/")
 
     @app.exception_handler(DomainError)
     async def domain_error(_: Request, exc: DomainError) -> JSONResponse:
@@ -74,6 +88,14 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
+        path = request.url.path
+        if path.startswith("/ui"):
+            response.headers["Content-Security-Policy"] = UI_CSP
+        elif path.startswith("/api"):
+            # JSON only: nothing may be loaded or framed from an API response.
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; frame-ancestors 'none'"
+            )
         return response
 
     @app.get("/healthz")

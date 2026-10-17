@@ -30,6 +30,8 @@ email-validator==2.3.0
     # via pydantic
 fastapi==0.143.3
     # via operationos-x (pyproject.toml)
+greenlet==3.5.6
+    # via playwright
 h11==0.16.0
     # via
     #   httpcore
@@ -63,6 +65,8 @@ packaging==26.3
     # via pytest
 pathspec==1.1.1
     # via mypy
+playwright==1.64.0
+    # via operationos-x (pyproject.toml)
 pluggy==1.7.0
     # via pytest
 psycopg==3.3.6
@@ -77,6 +81,8 @@ pydantic==2.14.1
     #   fastapi
 pydantic-core==2.50.1
     # via pydantic
+pyee==14.0.0
+    # via playwright
 pygments==2.21.0
     # via pytest
 pyjwt==2.15.1
@@ -103,6 +109,7 @@ typing-extensions==4.16.0
     #   psycopg
     #   pydantic
     #   pydantic-core
+    #   pyee
     #   sqlalchemy
     #   starlette
     #   typing-inspection

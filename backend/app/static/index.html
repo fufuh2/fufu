@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OperationOS-X</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">İçeriğe geç</a>
+  <header class="top" id="top" hidden>
+    <strong class="brand">OperationOS-X</strong>
+    <label class="branch">Şube
+      <select id="branch-select" aria-label="Şube seç"></select>
+    </label>
+    <nav aria-label="Ana menü">
+      <ul id="nav">
+        <li><a href="#/dashboard" data-perm="stock.read">Özet</a></li>
+        <li><a href="#/orders" data-perm="order.create">Siparişler</a></li>
+        <li><a href="#/stock" data-perm="stock.read">Stok işlemleri</a></li>
+        <li><a href="#/reports" data-perm="report.read">Raporlar</a></li>
+        <li><a href="#/quality" data-perm="quality.record">Kalite</a></li>
+        <li><a href="#/tasks" data-perm="task.complete">Görevler</a></li>
+      </ul>
+    </nav>
+    <span id="whoami" class="who"></span>
+    <button type="button" id="logout" title="Bu kullanıcının tüm cihazlardaki oturumlarını kapatır">Çıkış (tüm oturumlar)</button>
+  </header>
+  <div id="msg" class="msg" role="status" aria-live="polite"></div>
+  <main id="main" tabindex="-1"></main>
+</body>
+</html>

@@ -300,3 +300,19 @@ def cancel_order(session: Session, actor: Actor, order_id: uuid.UUID, reason: st
     )
     session.commit()
     return order
+
+
+def list_orders(
+    session: Session, actor: Actor, branch_id: uuid.UUID, limit: int, offset: int
+) -> list[Order]:
+    actor.require(Perm.STOCK_READ)
+    get_branch(session, actor, branch_id)
+    return list(
+        session.scalars(
+            select(Order)
+            .where(Order.tenant_id == actor.tenant_id, Order.branch_id == branch_id)
+            .order_by(Order.ordered_at.desc(), Order.id)
+            .limit(limit)
+            .offset(offset)
+        )
+    )

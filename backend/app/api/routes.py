@@ -11,9 +11,9 @@ from sqlalchemy import select
 from app.api import schemas as s
 from app.api.deps import ActorDep, SessionDep
 from app.config import load_settings
-from app.domain.permissions import Perm
+from app.domain.permissions import ROLE_PERMISSIONS, Perm
 from app.errors import Invalid
-from app.models import Item, Product, StockMovement
+from app.models import Item, Product, StockMovement, User
 from app.security import issue_token
 from app.services import (
     admin,
@@ -41,6 +41,21 @@ def login(body: s.LoginIn, session: SessionDep) -> s.TokenOut:
             user.id, user.token_version, settings.jwt_secret, settings.jwt_ttl_minutes
         )
     )
+
+
+@router.get("/me")
+def me(actor: ActorDep, session: SessionDep) -> Any:
+    """Who am I and what may I do. The UI uses it to hide actions; the API enforces them."""
+    user = session.get(User, actor.user_id)
+    return {
+        "id": actor.user_id,
+        "email": user.email if user else None,
+        "role": actor.role.value,
+        "branch_ids": sorted(str(b) for b in actor.branch_ids)
+        if actor.branch_ids is not None
+        else None,
+        "permissions": sorted(p.value for p in ROLE_PERMISSIONS[actor.role]),
+    }
 
 
 @router.post("/auth/password", status_code=204)
@@ -301,6 +316,19 @@ def create_order(
         response.status_code = status.HTTP_200_OK
         response.headers["Idempotent-Replayed"] = "true"
     return _order_out(session, order)
+
+
+@router.get("/branches/{branch_id}/orders", response_model=list[s.OrderOut])
+def list_orders(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
+) -> Any:
+    return [
+        _order_out(session, o) for o in orders.list_orders(session, actor, branch_id, limit, offset)
+    ]
 
 
 @router.get("/orders/{order_id}", response_model=s.OrderOut)

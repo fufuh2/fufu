@@ -22,12 +22,15 @@ jobs:
       OPSX_TEST_DATABASE_URL: postgresql+psycopg://ops:ops@localhost:5432/opsx_test
       OPSX_DATABASE_URL: postgresql+psycopg://ops:ops@localhost:5432/opsx_test
       OPSX_JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      OPSX_INTEGRATION_KEY: ci-only-integration-key-not-used-elsewhere-0123
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.lock
+      - name: Browser for UI tests
+        run: playwright install --with-deps chromium
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app

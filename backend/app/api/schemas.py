@@ -498,6 +498,7 @@ class NonconformityOut(BaseModel):
     status: str
     corrective_action: str | None
     resolved_at: datetime | None
+    created_at: datetime
 
 
 class NcAssignIn(Strict):
