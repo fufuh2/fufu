@@ -197,6 +197,7 @@ WASTE_REASONS = (
     "customer_return",
     "staff_meal",
     "spill_accident",
+    "transit_loss",
     "unknown",
 )
 
@@ -332,3 +333,48 @@ class AuditEvent(Base):
     entity_id: Mapped[str | None] = mapped_column(String(64))
     data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     at: Mapped[datetime] = _now()
+
+
+class Transfer(Base):
+    """Two-step transfer: shipped (stock left the source, in transit) -> received/cancelled."""
+
+    __tablename__ = "transfers"
+    __table_args__ = (
+        CheckConstraint("from_branch_id <> to_branch_id", name="ck_transfer_branches"),
+        CheckConstraint("status IN ('shipped','received','cancelled')", name="ck_transfer_status"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    from_branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    to_branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500))
+    shipped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    shipped_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+
+
+class TransferLine(Base):
+    __tablename__ = "transfer_lines"
+    __table_args__ = (
+        UniqueConstraint("transfer_id", "item_id"),
+        CheckConstraint("shipped_quantity_base > 0", name="ck_transfer_line_shipped"),
+        CheckConstraint(
+            "received_quantity_base IS NULL OR "
+            "(received_quantity_base >= 0 AND received_quantity_base <= shipped_quantity_base)",
+            name="ck_transfer_line_received",
+        ),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    transfer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("transfers.id"), nullable=False, index=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), nullable=False)
+    shipped_quantity_base: Mapped[Decimal] = mapped_column(QTY, nullable=False)
+    unit_cost: Mapped[Decimal] = mapped_column(UNIT_COST, nullable=False)
+    received_quantity_base: Mapped[Decimal | None] = mapped_column(QTY)

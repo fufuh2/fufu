@@ -11,7 +11,7 @@ from app.config import load_settings
 from app.domain.permissions import Perm
 from app.models import Item, Product, StockMovement
 from app.security import issue_token
-from app.services import admin, catalog, inventory, orders, reports
+from app.services import admin, catalog, inventory, orders, reports, transfers
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -322,3 +322,67 @@ def margin_report(
     end: Annotated[datetime, Query(alias="to")],
 ) -> Any:
     return reports.margin(session, actor, branch_id, start, end)
+
+
+# --- transfers ------------------------------------------------------------------------------
+
+
+def _transfer_out(session: SessionDep, transfer: Any) -> s.TransferOut:
+    out = s.TransferOut.model_validate(transfer)
+    out.lines = [
+        s.TransferLineOut.model_validate(x) for x in transfers.transfer_lines(session, transfer.id)
+    ]
+    return out
+
+
+@router.post("/branches/{branch_id}/transfers", response_model=s.TransferOut, status_code=201)
+def ship_transfer(
+    branch_id: uuid.UUID, body: s.TransferIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    transfer = transfers.ship(
+        session,
+        actor,
+        branch_id,
+        body.to_branch_id,
+        [transfers.TransferLineIn(x.item_id, x.quantity, x.unit) for x in body.lines],
+        body.note,
+    )
+    return _transfer_out(session, transfer)
+
+
+@router.get("/branches/{branch_id}/transfers", response_model=list[s.TransferOut])
+def list_transfers(
+    branch_id: uuid.UUID,
+    actor: ActorDep,
+    session: SessionDep,
+    status: Annotated[str | None, Query(pattern="^(shipped|received|cancelled)$")] = None,
+) -> Any:
+    return [
+        _transfer_out(session, t)
+        for t in transfers.list_transfers(session, actor, branch_id, status)
+    ]
+
+
+@router.get("/transfers/{transfer_id}", response_model=s.TransferOut)
+def get_transfer(transfer_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    actor.require(Perm.STOCK_READ)
+    return _transfer_out(session, transfers.get_transfer(session, actor, transfer_id))
+
+
+@router.post("/transfers/{transfer_id}/receive", response_model=s.TransferOut)
+def receive_transfer(
+    transfer_id: uuid.UUID, body: s.TransferReceiveIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    lines = (
+        None
+        if body.lines is None
+        else [transfers.ReceiveLineIn(x.item_id, x.quantity, x.unit) for x in body.lines]
+    )
+    return _transfer_out(session, transfers.receive(session, actor, transfer_id, lines))
+
+
+@router.post("/transfers/{transfer_id}/cancel", response_model=s.TransferOut)
+def cancel_transfer(
+    transfer_id: uuid.UUID, body: s.CancelIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return _transfer_out(session, transfers.cancel(session, actor, transfer_id, body.reason))

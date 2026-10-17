@@ -249,3 +249,46 @@ class AuditOut(BaseModel):
     entity_id: str | None
     data: dict
     at: datetime
+
+
+class TransferLineSchema(Strict):
+    item_id: uuid.UUID
+    quantity: Qty
+    unit: UnitCode
+
+
+class TransferIn(Strict):
+    to_branch_id: uuid.UUID
+    note: Annotated[str, Field(max_length=500)] | None = None
+    lines: Annotated[list[TransferLineSchema], Field(min_length=1, max_length=500)]
+
+
+class TransferReceiveLine(Strict):
+    item_id: uuid.UUID
+    quantity: NonNegQty
+    unit: UnitCode
+
+
+class TransferReceiveIn(Strict):
+    # Omit to receive everything exactly as shipped.
+    lines: Annotated[list[TransferReceiveLine], Field(max_length=500)] | None = None
+
+
+class TransferLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    item_id: uuid.UUID
+    shipped_quantity_base: Decimal
+    unit_cost: Decimal
+    received_quantity_base: Decimal | None
+
+
+class TransferOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    from_branch_id: uuid.UUID
+    to_branch_id: uuid.UUID
+    status: str
+    note: str | None
+    shipped_at: datetime
+    closed_at: datetime | None
+    lines: list[TransferLineOut] = []

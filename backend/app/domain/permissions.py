@@ -16,6 +16,15 @@ class Perm(StrEnum):
     ORDER_CANCEL = "order.cancel"
     REPORT_READ = "report.read"
     AUDIT_READ = "audit.read"
+    STOCK_TRANSFER = "stock.transfer"
+    PURCHASE_MANAGE = "purchase.manage"
+    PURCHASE_APPROVE = "purchase.approve"
+    QUALITY_RECORD = "quality.record"
+    QUALITY_MANAGE = "quality.manage"
+    SHIFT_MANAGE = "shift.manage"
+    SHIFT_SELF = "shift.self"
+    TASK_COMPLETE = "task.complete"
+    INTEGRATION_MANAGE = "integration.manage"
 
 
 class Role(StrEnum):
@@ -34,7 +43,7 @@ _ALL = frozenset(Perm)
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
-    Role.REGIONAL_MANAGER: _ALL - {Perm.USER_MANAGE, Perm.BRANCH_MANAGE},
+    Role.REGIONAL_MANAGER: _ALL - {Perm.USER_MANAGE, Perm.BRANCH_MANAGE, Perm.INTEGRATION_MANAGE},
     Role.BRANCH_MANAGER: frozenset(
         {
             Perm.STOCK_READ,
@@ -45,14 +54,58 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.ORDER_CANCEL,
             Perm.REPORT_READ,
             Perm.AUDIT_READ,
+            Perm.STOCK_TRANSFER,
+            Perm.PURCHASE_MANAGE,
+            Perm.PURCHASE_APPROVE,
+            Perm.QUALITY_RECORD,
+            Perm.SHIFT_MANAGE,
+            Perm.SHIFT_SELF,
+            Perm.TASK_COMPLETE,
         }
     ),
     Role.SHIFT_LEAD: frozenset(
-        {Perm.STOCK_READ, Perm.STOCK_WASTE, Perm.STOCK_COUNT, Perm.ORDER_CREATE, Perm.ORDER_CANCEL}
+        {
+            Perm.STOCK_READ,
+            Perm.STOCK_WASTE,
+            Perm.STOCK_COUNT,
+            Perm.ORDER_CREATE,
+            Perm.ORDER_CANCEL,
+            Perm.QUALITY_RECORD,
+            Perm.SHIFT_SELF,
+            Perm.TASK_COMPLETE,
+        }
     ),
-    Role.PURCHASING: frozenset({Perm.STOCK_READ, Perm.STOCK_RECEIVE, Perm.STOCK_COUNT}),
-    Role.KITCHEN: frozenset({Perm.STOCK_READ, Perm.STOCK_WASTE, Perm.ORDER_CREATE}),
-    Role.QUALITY: frozenset({Perm.STOCK_READ, Perm.STOCK_WASTE}),
+    Role.PURCHASING: frozenset(
+        {
+            Perm.STOCK_READ,
+            Perm.STOCK_RECEIVE,
+            Perm.STOCK_COUNT,
+            Perm.STOCK_TRANSFER,
+            Perm.PURCHASE_MANAGE,
+            Perm.SHIFT_SELF,
+            Perm.TASK_COMPLETE,
+        }
+    ),
+    Role.KITCHEN: frozenset(
+        {
+            Perm.STOCK_READ,
+            Perm.STOCK_WASTE,
+            Perm.ORDER_CREATE,
+            Perm.QUALITY_RECORD,
+            Perm.SHIFT_SELF,
+            Perm.TASK_COMPLETE,
+        }
+    ),
+    Role.QUALITY: frozenset(
+        {
+            Perm.STOCK_READ,
+            Perm.STOCK_WASTE,
+            Perm.QUALITY_RECORD,
+            Perm.QUALITY_MANAGE,
+            Perm.SHIFT_SELF,
+            Perm.TASK_COMPLETE,
+        }
+    ),
     Role.FINANCE: frozenset({Perm.STOCK_READ, Perm.REPORT_READ}),
     Role.AUDITOR: frozenset({Perm.STOCK_READ, Perm.REPORT_READ, Perm.AUDIT_READ}),
 }
