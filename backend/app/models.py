@@ -118,6 +118,11 @@ class CountItem(Base):
         UniqueConstraint("tenant_id", "name"),
         CheckConstraint("unit IN ('" + "','".join(COUNT_UNITS) + "')", name="ck_count_item_unit"),
         CheckConstraint("unit_price IS NULL OR unit_price >= 0", name="ck_count_item_price"),
+        CheckConstraint(
+            "(content_qty IS NULL AND content_unit IS NULL) OR "
+            "(content_qty > 0 AND content_unit IN ('" + "','".join(COUNT_UNITS) + "'))",
+            name="ck_count_item_content",
+        ),
     )
     id: Mapped[uuid.UUID] = _uuid()
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -129,6 +134,10 @@ class CountItem(Base):
     unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Package content for items counted per package: 1 ADET (kova) = 9.5 KG. Lets recipes in
+    # grams consume items counted in pieces.
+    content_qty: Mapped[Decimal | None] = mapped_column(Numeric(14, 4))
+    content_unit: Mapped[str | None] = mapped_column(String(8))
     created_at: Mapped[datetime] = _now()
 
 
@@ -163,6 +172,7 @@ class MonthlyCountLine(Base):
         CheckConstraint("incoming >= 0", name="ck_mcl_incoming"),
         CheckConstraint("used >= 0", name="ck_mcl_used"),
         CheckConstraint("waste >= 0", name="ck_mcl_waste"),
+        CheckConstraint("recipe_used >= 0", name="ck_mcl_recipe_used"),
         CheckConstraint("counted IS NULL OR counted >= 0", name="ck_mcl_counted"),
     )
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -179,7 +189,55 @@ class MonthlyCountLine(Base):
     waste: Mapped[Decimal] = mapped_column(
         Numeric(14, 3), nullable=False, default=Decimal("0"), server_default="0"
     )
+    # Sold menu products × recipe, recomputed while the month is a draft and frozen at close.
+    recipe_used: Mapped[Decimal] = mapped_column(
+        Numeric(14, 3), nullable=False, default=Decimal("0"), server_default="0"
+    )
     counted: Mapped[Decimal | None] = mapped_column(Numeric(14, 3))
     # Price snapshot at close, so later price edits do not rewrite a closed month's value.
     unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
     note: Mapped[str | None] = mapped_column(String(300))
+
+
+# --- menu products and recipes -------------------------------------------------------------
+
+
+class MenuProduct(Base):
+    """Something sold (a burger, a menu); its recipe says what it uses from the count list."""
+
+    __tablename__ = "menu_products"
+    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = _now()
+
+
+class RecipeLine(Base):
+    __tablename__ = "recipe_lines"
+    __table_args__ = (
+        UniqueConstraint("product_id", "item_id"),
+        CheckConstraint("quantity > 0", name="ck_recipe_line_qty"),
+        CheckConstraint("unit IN ('" + "','".join(COUNT_UNITS) + "')", name="ck_recipe_line_unit"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("menu_products.id"), nullable=False, index=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("count_items.id"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 4), nullable=False)
+    unit: Mapped[str] = mapped_column(String(8), nullable=False)
+
+
+class MonthlySale(Base):
+    """How many of a menu product the branch sold in that month."""
+
+    __tablename__ = "monthly_sales"
+    __table_args__ = (CheckConstraint("quantity >= 0", name="ck_monthly_sale_qty"),)
+    count_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("monthly_counts.id"), primary_key=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("menu_products.id"), primary_key=True)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)

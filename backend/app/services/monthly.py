@@ -1,7 +1,8 @@
 """Monthly inventory count (aylık sayım).
 
-One sheet per branch and month. Each line: opening (devir) + incoming (gelen) - used - waste (zayi)
-(satılan/kullanılan) = expected; counted (sayılan) - expected = difference (fazla/eksik).
+One sheet per branch and month. Each line: opening (devir) + incoming (gelen) - recipe_used
+(satıştan, menu sales × recipe) - used (elle girilen kullanım) - waste (zayi) = expected;
+counted (sayılan) - expected = difference (fazla/eksik).
 The opening of a month is the counted quantity of the latest *closed* earlier month and is
 locked; without a closed earlier month it is entered by hand. A closed month is read-only
 and keeps the unit prices it was closed with.
@@ -22,9 +23,16 @@ from sqlalchemy.orm import Session
 from app.domain.monthly import compute_line, parse_period
 from app.domain.permissions import Perm
 from app.errors import Conflict, Invalid, NotFound
-from app.models import COUNT_UNITS, CountItem, MonthlyCount, MonthlyCountLine
+from app.models import (
+    COUNT_UNITS,
+    CountItem,
+    MenuProduct,
+    MonthlyCount,
+    MonthlyCountLine,
+    MonthlySale,
+)
 from app.security import Actor
-from app.services import audit
+from app.services import audit, menu
 from app.services.scope import get_active_branch, get_branch
 
 DEFAULT_ITEMS = Path(__file__).resolve().parent.parent / "data" / "taffburger_items.json"
@@ -42,9 +50,12 @@ def list_items(session: Session, actor: Actor, include_inactive: bool = False) -
     return list(session.scalars(stmt.order_by(CountItem.sort_order, CountItem.name)))
 
 
-def _check_item_fields(unit: str | None, price: Decimal | None) -> None:
-    if unit is not None and unit not in COUNT_UNITS:
-        raise Invalid(f"birim şunlardan biri olmalı: {', '.join(COUNT_UNITS)}")
+def _check_item_fields(
+    unit: str | None, price: Decimal | None, content_unit: str | None = None
+) -> None:
+    for u in (unit, content_unit):
+        if u is not None and u not in COUNT_UNITS:
+            raise Invalid(f"birim şunlardan biri olmalı: {', '.join(COUNT_UNITS)}")
     if price is not None and price < 0:
         raise Invalid("birim fiyat negatif olamaz")
 
@@ -57,9 +68,13 @@ def create_item(
     name: str,
     unit: str,
     unit_price: Decimal | None,
+    content_qty: Decimal | None = None,
+    content_unit: str | None = None,
 ) -> CountItem:
     actor.require(Perm.ITEM_MANAGE)
-    _check_item_fields(unit, unit_price)
+    _check_item_fields(unit, unit_price, content_unit)
+    if (content_qty is None) != (content_unit is None):
+        raise Invalid("paket içeriği için miktar ve birim birlikte girilmeli")
     last = session.scalar(
         select(func.max(CountItem.sort_order)).where(CountItem.tenant_id == actor.tenant_id)
     )
@@ -69,6 +84,8 @@ def create_item(
         name=name.strip(),
         unit=unit,
         unit_price=unit_price,
+        content_qty=content_qty,
+        content_unit=content_unit,
         sort_order=(last or 0) + 10,
     )
     session.add(item)
@@ -91,10 +108,14 @@ def update_item(
     )
     if item is None:
         raise NotFound("ürün bulunamadı")
-    _check_item_fields(fields.get("unit"), fields.get("unit_price"))
+    _check_item_fields(fields.get("unit"), fields.get("unit_price"), fields.get("content_unit"))
     before = {k: str(getattr(item, k)) for k in fields}
     for key, value in fields.items():
         setattr(item, key, value.strip() if isinstance(value, str) else value)
+    if (item.content_qty is None) != (item.content_unit is None):
+        raise Invalid("paket içeriği için miktar ve birim birlikte girilmeli")
+    if {"unit", "content_qty", "content_unit"} & fields.keys():
+        menu.check_item_still_convertible(session, item)
     try:
         session.flush()
     except IntegrityError as exc:
@@ -194,7 +215,9 @@ def _sync_draft(session: Session, count: MonthlyCount) -> None:
                 select(MonthlyCountLine).where(MonthlyCountLine.count_id == prev.id)
             )
         }
+    usage = menu.recipe_usage(session, count.tenant_id, count.id)
     for item_id, line in lines.items():
+        line.recipe_used = usage.get(item_id, Decimal("0"))
         if prev is not None and item_id in prev_counted:
             line.opening = prev_counted[item_id] or Decimal("0")
             line.opening_locked = True
@@ -270,6 +293,7 @@ def save_lines(
     period: str,
     updates: list[LineUpdate],
     header: dict[str, Any],
+    sales: list[tuple[uuid.UUID, Decimal]] | None = None,
 ) -> MonthlyCount:
     actor.require(Perm.COUNT_EDIT)
     get_active_branch(session, actor, branch_id)
@@ -309,13 +333,41 @@ def save_lines(
     for key in ("counted_by_name", "count_date", "note"):
         if key in header:
             setattr(count, key, header[key])
+    for product_id, qty in sales or []:
+        if (
+            session.scalar(
+                select(MenuProduct.id).where(
+                    MenuProduct.id == product_id, MenuProduct.tenant_id == actor.tenant_id
+                )
+            )
+            is None
+        ):
+            raise NotFound("menü ürünü bulunamadı")
+        row = session.get(MonthlySale, (count.id, product_id))
+        if qty == 0:
+            if row is not None:
+                session.delete(row)
+        elif row is None:
+            session.add(
+                MonthlySale(count_id=count.id, product_id=product_id, quantity=_qty(qty, "satış"))
+            )
+        else:
+            row.quantity = _qty(qty, "satış")
+    if sales:
+        session.flush()
+        _sync_draft(session, count)
     audit.record(
         session,
         actor,
         "monthly_count.save",
         "monthly_count",
         count.id,
-        {"branch_id": str(branch_id), "period": period, "lines": changed},
+        {
+            "branch_id": str(branch_id),
+            "period": period,
+            "lines": changed,
+            "sales": len(sales or []),
+        },
     )
     session.commit()
     return count
@@ -425,7 +477,15 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         if count.status == "draft" and not item.is_active:
             continue
         price = line.unit_price if count.status == "closed" else item.unit_price
-        r = compute_line(line.opening, line.incoming, line.used, line.counted, price, line.waste)
+        r = compute_line(
+            line.opening,
+            line.incoming,
+            line.used,
+            line.counted,
+            price,
+            line.waste,
+            line.recipe_used,
+        )
         g = groups.setdefault(
             item.group_name,
             {"name": item.group_name, "lines": [], "difference_value": Decimal("0")},
@@ -440,6 +500,7 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
                 "opening_locked": line.opening_locked,
                 "incoming": line.incoming,
                 "used": line.used,
+                "recipe_used": line.recipe_used,
                 "waste": line.waste,
                 "waste_value": r.waste_value,
                 "counted": line.counted,
@@ -474,9 +535,31 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         .order_by(MonthlyCount.period.desc())
         .limit(1)
     )
+    sold = menu.sales_of(session, count.id)
+    products = [
+        {"product_id": p.id, "name": p.name, "quantity": sold.get(p.id, Decimal("0"))}
+        for p in session.scalars(
+            select(MenuProduct)
+            .where(MenuProduct.tenant_id == count.tenant_id)
+            .order_by(MenuProduct.sort_order, MenuProduct.name)
+        )
+        if p.is_active or p.id in sold
+    ]
+    # Draft only: lets the UI recompute "Satıştan" live while sales are typed. A closed month
+    # keeps the usage it was closed with even if recipes change later.
+    recipes = (
+        {
+            str(item_id): [{"product_id": pid, "per_unit": per} for pid, per in uses]
+            for item_id, uses in menu.recipes_by_item(session, count.tenant_id).items()
+        }
+        if count.status == "draft"
+        else None
+    )
     return {
         "id": count.id,
         "branch_id": count.branch_id,
+        "sales": products,
+        "recipes": recipes,
         "period": count.period.strftime("%Y-%m"),
         "status": count.status,
         "counted_by_name": count.counted_by_name,

@@ -99,6 +99,9 @@ Period = Annotated[str, Field(pattern=r"^\d{4}-\d{2}$")]
 PeriodQuery = Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")]
 
 
+Content = Annotated[Decimal, Field(gt=0, le=Decimal("1000000"), decimal_places=4)]
+
+
 class CountItemIn(Strict):
     group_name: Annotated[str, Field(min_length=1, max_length=100)]
     name: Annotated[str, Field(min_length=1, max_length=200)]
@@ -106,6 +109,8 @@ class CountItemIn(Strict):
     unit_price: (
         Annotated[Decimal, Field(ge=0, le=Decimal("100000000"), decimal_places=2)] | None
     ) = None
+    content_qty: Content | None = None
+    content_unit: CountUnit | None = None
 
 
 class CountItemPatch(Strict):
@@ -117,6 +122,8 @@ class CountItemPatch(Strict):
     ) = None
     sort_order: Annotated[int, Field(ge=0, le=1000000)] | None = None
     is_active: bool | None = None
+    content_qty: Content | None = None
+    content_unit: CountUnit | None = None
 
 
 class CountItemOut(BaseModel):
@@ -128,6 +135,8 @@ class CountItemOut(BaseModel):
     unit_price: Decimal | None
     sort_order: int
     is_active: bool
+    content_qty: Decimal | None
+    content_unit: str | None
 
 
 class CountLineIn(Strict):
@@ -146,3 +155,29 @@ class MonthlySaveIn(Strict):
     count_date: date | None = None
     note: Annotated[str, Field(max_length=1000)] | None = None
     lines: Annotated[list[CountLineIn], Field(max_length=2000)] = []
+    sales: Annotated[list["SaleIn"], Field(max_length=2000)] = []
+
+
+class SaleIn(Strict):
+    product_id: uuid.UUID
+    quantity: CountQty
+
+
+class MenuProductIn(Strict):
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+
+
+class MenuProductPatch(Strict):
+    name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    is_active: bool | None = None
+    sort_order: Annotated[int, Field(ge=0, le=1000000)] | None = None
+
+
+class RecipeLineIn(Strict):
+    item_id: uuid.UUID
+    quantity: Annotated[Decimal, Field(gt=0, le=Decimal("1000000"), decimal_places=4)]
+    unit: CountUnit
+
+
+class RecipeIn(Strict):
+    lines: Annotated[list[RecipeLineIn], Field(max_length=200)]

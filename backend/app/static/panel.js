@@ -148,7 +148,7 @@ async function renderAnalysis() {
     out.replaceChildren(
       el("div", { class: "grid" },
         kpi("Toplam gelen", `${showQty(sum("incoming"))} ${u}`, `${months.length} ay`),
-        kpi("Toplam satılan / kullanılan", `${showQty(sum("used"))} ${u}`),
+        kpi("Toplam kullanım", `${showQty(sum("used") + sum("recipe_used"))} ${u}`, `reçeteden ${showQty(sum("recipe_used"))} · elle ${showQty(sum("used"))}`),
         kpi("Toplam zayi", `${showQty(sum("waste"))} ${u}`, anyValue ? showMoney(sum("waste_value")) : "fiyat yok", "zayi"),
         kpi("Toplam fark", `${signedQty(totalDiff)} ${u}`, anyValue ? showMoney(sum("difference_value")) : "fiyat yok", totalDiff < 0 ? "eksik" : totalDiff > 0 ? "fazla" : ""),
         kpi("Eksik çıkan ay", `${eksikMonths} / ${counted.length}`, "sayılan aylar içinde")),
@@ -157,8 +157,8 @@ async function renderAnalysis() {
           cls: Number(m.difference) < 0 ? "bar-neg" : "bar-pos", title: `${periodLabel(m.period)}: ${signedQty(m.difference)} ${u}` })), { width: 1200, height: 230 }),
         el("div", { class: "legend" }, el("span", { class: "neg" }, "eksik"), el("span", { class: "pos" }, "fazla"), el("span", {}, "sayılmadı"))),
       el("section", { class: "card" }, el("h2", {}, item.name),
-        table([["Ay"], ["Durum"], ["Devir", "num"], ["Gelen", "num"], ["Satılan", "num"], ["Zayi", "num"], ["Beklenen", "num"], ["Sayılan", "num"], ["Fark", "num"], ["Fark ₺", "num"], ["Zayi ₺", "num"]],
-          [...months].reverse().map((m) => [[periodLabel(m.period)], [statusBadge(m.status)], [showQty(m.opening), "num"], [showQty(m.incoming), "num"], [showQty(m.used), "num"],
+        table([["Ay"], ["Durum"], ["Devir", "num"], ["Gelen", "num"], ["Satıştan", "num"], ["Satılan (elle)", "num"], ["Zayi", "num"], ["Beklenen", "num"], ["Sayılan", "num"], ["Fark", "num"], ["Fark ₺", "num"], ["Zayi ₺", "num"]],
+          [...months].reverse().map((m) => [[periodLabel(m.period)], [statusBadge(m.status)], [showQty(m.opening), "num"], [showQty(m.incoming), "num"], [showQty(m.recipe_used), "num"], [showQty(m.used), "num"],
             [showQty(m.waste), "num"], [showQty(m.expected), "num"], [showQty(m.counted), "num"], [signedQty(m.difference), `num strong ${m.difference_status}`],
             [showMoney(m.difference_value), "num"], [showMoney(m.waste_value), "num"]]))));
   }

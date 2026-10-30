@@ -1,6 +1,7 @@
 # Taff Burger · Aylık Sayım (fufu)
 
-Restoranın aylık envanter sayımı: her ürün için **devir + gelen − satılan/kullanılan − zayi = beklenen**,
+Restoranın aylık envanter sayımı: her ürün için **devir + gelen − satıştan (menü satışı × reçete) −
+diğer kullanım − zayi = beklenen**,
 **sayılan − beklenen = fark** (fazla / eksik), TL karşılıkları, aylar arası devir, ay kapatma, Excel çıktısı,
 panel ve ürün bazlı analiz. Sistemde yalnızca aylık sayım motoru vardır.
 
@@ -70,7 +71,8 @@ Tarayıcı testleri (`tests/ui`) Playwright + Chromium ister. Tarayıcı yoksa *
 | GET | `/audit-events?limit=&offset=&action=` | `audit.read` |
 | GET · POST · PATCH | `/count-items` · `/count-items/{id}` · POST `/count-items/load-defaults` | `count.read` · `item.manage` |
 | GET | `/branches/{id}/monthly-counts` (aylar ve toplamları) | `count.read` |
-| GET · PUT | `/branches/{id}/monthly-counts/{YYYY-MM}` (GET ilk açılışta taslak oluşturur) | `count.read` (+`count.edit` oluşturmak için) · `count.edit` |
+| GET · PUT | `/branches/{id}/monthly-counts/{YYYY-MM}` (GET ilk açılışta taslak oluşturur; PUT satırları ve `sales` alır) | `count.read` (+`count.edit` oluşturmak için) · `count.edit` |
 | POST | `/branches/{id}/monthly-counts/{YYYY-MM}/close` · `/reopen` | `count.close` |
 | GET | `/branches/{id}/monthly-counts/{YYYY-MM}/export.xlsx` | `count.read` |
+| GET · POST · PATCH · PUT | `/menu-products` · `/menu-products/{id}` · `/menu-products/{id}/recipe` | `count.read` · `item.manage` |
 | GET | `/branches/{id}/dashboard?period=` · `/branches/{id}/count-items/{item}/history` · `/monthly-counts/overview?period=` | `count.read` |

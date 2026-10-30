@@ -9,7 +9,7 @@ from app.config import load_settings
 from app.domain.permissions import ROLE_LABELS, ROLE_PERMISSIONS
 from app.models import User
 from app.security import issue_token
-from app.services import admin, monthly, monthly_export, monthly_reports
+from app.services import admin, menu, monthly, monthly_export, monthly_reports
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -140,7 +140,39 @@ def create_count_item(body: s.CountItemIn, actor: ActorDep, session: SessionDep)
         name=body.name,
         unit=body.unit,
         unit_price=body.unit_price,
+        content_qty=body.content_qty,
+        content_unit=body.content_unit,
     )
+
+
+@router.get("/menu-products")
+def list_menu_products(actor: ActorDep, session: SessionDep) -> Any:
+    """Menu products with their recipes."""
+    return menu.list_products(session, actor)
+
+
+@router.post("/menu-products", status_code=201)
+def create_menu_product(body: s.MenuProductIn, actor: ActorDep, session: SessionDep) -> Any:
+    p = menu.create_product(session, actor, body.name)
+    return {"id": p.id, "name": p.name, "is_active": p.is_active, "sort_order": p.sort_order}
+
+
+@router.patch("/menu-products/{product_id}")
+def update_menu_product(
+    product_id: uuid.UUID, body: s.MenuProductPatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    p = menu.update_product(session, actor, product_id, body.model_dump(exclude_unset=True))
+    return {"id": p.id, "name": p.name, "is_active": p.is_active, "sort_order": p.sort_order}
+
+
+@router.put("/menu-products/{product_id}/recipe")
+def set_recipe(
+    product_id: uuid.UUID, body: s.RecipeIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    menu.set_recipe(
+        session, actor, product_id, [(x.item_id, x.quantity, x.unit) for x in body.lines]
+    )
+    return next(p for p in menu.list_products(session, actor) if p["id"] == product_id)
 
 
 @router.patch("/count-items/{item_id}", response_model=s.CountItemOut)
@@ -203,7 +235,8 @@ def save_monthly_count(
         branch_id,
         period,
         [monthly.LineUpdate(**x.model_dump()) for x in body.lines],
-        body.model_dump(exclude_unset=True, exclude={"lines"}),
+        body.model_dump(exclude_unset=True, exclude={"lines", "sales"}),
+        [(x.product_id, x.quantity) for x in body.sales],
     )
     return monthly.sheet(session, actor, count)
 

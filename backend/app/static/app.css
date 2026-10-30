@@ -169,3 +169,11 @@ details.branches div { display: flex; flex-direction: column; gap: 4px; padding:
 }
 fieldset { border: 0; padding: 0; margin: 12px 0; }
 legend { font-size: 13px; color: var(--muted); margin-bottom: 4px; padding: 0; }
+.sales summary { cursor: pointer; }
+.sales-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+.sales-grid input.qty { width: 100%; text-align: right; }
+.count-table td.recipe { color: #3b4b8a; font-variant-numeric: tabular-nums; cursor: help; }
+.pkg { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 13px; }
+.pkg input.qty { width: 80px; text-align: right; }
+.recipe-card table { margin: 8px 0; }
+.recipe-card select { max-width: 340px; }

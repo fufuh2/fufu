@@ -2,14 +2,14 @@
 // Aylık sayım formu, geçmiş aylar ve ürün listesi. app.js'teki yardımcıları kullanır.
 
 const FIELDS = [
-  ["opening", "Devir"], ["incoming", "Gelen"], ["used", "Satılan / Kullanılan"], ["waste", "Zayi"], ["counted", "Sayılan"],
+  ["opening", "Devir"], ["incoming", "Gelen"], ["used", "Satılan / Kullanılan (elle)"], ["waste", "Zayi"], ["counted", "Sayılan"],
 ];
 
 // Ekranda anlık hesap: binde birlik tamsayılarla (kayan nokta hatası olmadan).
 function milli(v) { return v === null || v === undefined || v === "" ? null : Math.round(Number(v) * 1000); }
 function fromMilli(m) { return m === null ? null : m / 1000; }
 function computeLine(c) {
-  const e = milli(c.opening) + milli(c.incoming) - milli(c.used) - milli(c.waste);
+  const e = milli(c.opening) + milli(c.incoming) - milli(c.recipe_used) - milli(c.used) - milli(c.waste);
   const k = milli(c.counted);
   const d = k === null ? null : k - e;
   const st = d === null ? "sayilmadi" : d > 0 ? "fazla" : d < 0 ? "eksik" : "tamam";
@@ -35,8 +35,8 @@ async function renderCount() {
 function drawSheet(sheet) {
   const closed = sheet.status === "closed";
   const editable = !closed && can("count.edit");
-  const dirty = { lines: new Map(), header: {} };
-  const hasUnsaved = () => dirty.lines.size > 0 || Object.keys(dirty.header).length > 0;
+  const dirty = { lines: new Map(), header: {}, sales: new Map() };
+  const hasUnsaved = () => dirty.lines.size > 0 || Object.keys(dirty.header).length > 0 || dirty.sales.size > 0;
   state.guard = hasUnsaved;
 
   const summary = el("div", { class: "grid" });
@@ -47,6 +47,19 @@ function drawSheet(sheet) {
   const saveBtn = el("button", { type: "button", disabled: true }, "Kaydet");
   const rows = [];
   const groupRows = [];
+  const recipes = sheet.recipes; // taslakta: item_id -> [{product_id, per_unit}]; kapalı ayda null
+  const sales = new Map(sheet.sales.map((x) => [x.product_id, String(x.quantity)]));
+  const productName = new Map(sheet.sales.map((x) => [x.product_id, x.name]));
+  const recipeUsed = (itemId) => {
+    if (!recipes) return null;
+    const uses = recipes[itemId] || [];
+    return fromMilli(Math.round(uses.reduce((acc, u) => acc + Number(sales.get(u.product_id) || 0) * Number(u.per_unit), 0) * 1000));
+  };
+  const recipeTitle = (itemId, unit) => {
+    const uses = (recipes || {})[itemId] || [];
+    if (!uses.length) return "Bu malzeme hiçbir reçetede yok";
+    return uses.map((u) => `${productName.get(u.product_id) || "?"}: ${showQty(sales.get(u.product_id) || 0)} × ${showQty(Number(u.per_unit))} ${unit}`).join("\n");
+  };
 
   const who = el("input", { name: "counted_by_name", value: sheet.counted_by_name || "", maxlength: 200, disabled: !editable });
   const when = el("input", { type: "date", name: "count_date", value: sheet.count_date || "", disabled: !editable });
@@ -73,21 +86,25 @@ function drawSheet(sheet) {
       return el("td", { class: "num" }, input);
     };
     const expected = el("td", { class: "num" });
+    const fromSales = el("td", { class: "num recipe", title: recipeTitle(line.item_id, line.unit) });
     const diff = el("td", { class: "num strong" });
     const status = el("td");
     const value = el("td", { class: "num" });
     const tr = el("tr", {},
       el("td", { class: "name" }, line.name, line.opening_locked ? el("span", { class: "lock", title: "Devir önceki kapanmış aydan geliyor" }, " 🔒") : ""),
       el("td", {}, line.unit),
-      mk("opening"), mk("incoming"), mk("used"), mk("waste"), expected, mk("counted"), diff, status, value);
-    // Sütun sırası: Devir, Gelen, Satılan, Zayi, Beklenen, Sayılan — Beklenen hesaplanır.
-    row = { line, tr, cells, expected, diff, status, value, current: { ...line } };
+      mk("opening"), mk("incoming"), fromSales, mk("used"), mk("waste"), expected, mk("counted"), diff, status, value);
+    row = { line, tr, cells, expected, fromSales, diff, status, value, current: { ...line } };
     rows.push(row);
     paint(row);
     return tr;
   }
 
   function paint(row) {
+    const live = recipeUsed(row.line.item_id);
+    if (live !== null) row.current.recipe_used = live;
+    row.fromSales.textContent = Number(row.current.recipe_used) ? showQty(row.current.recipe_used) : "—";
+    row.fromSales.title = recipes ? recipeTitle(row.line.item_id, row.line.unit) : "Kapatılan ayın değeri";
     const r = computeLine(row.current);
     row.expected.textContent = showQty(r.expected);
     row.diff.textContent = signedQty(r.difference);
@@ -165,11 +182,12 @@ function drawSheet(sheet) {
   filter.addEventListener("change", applyFilter);
 
   async function doSave() {
-    const body = { ...dirty.header, lines: [...dirty.lines.values()] };
+    const body = { ...dirty.header, lines: [...dirty.lines.values()],
+      sales: [...dirty.sales].map(([product_id, quantity]) => ({ product_id, quantity })) };
     saveBtn.disabled = true;
     const r = await api("PUT", `/branches/${state.branch}/monthly-counts/${sheet.period}`, body);
     if (!r.ok) { message(r.error); markDirty(); return false; }
-    dirty.lines.clear(); dirty.header = {};
+    dirty.lines.clear(); dirty.header = {}; dirty.sales.clear();
     message("Sayım kaydedildi.", "info");
     drawSheet(r.data);
     return true;
@@ -214,8 +232,36 @@ function drawSheet(sheet) {
     }
   };
 
-  const headers = ["Malzeme", "Birim", ...FIELDS.slice(0, 4).map(([, t]) => t), "Beklenen", "Sayılan", "Fark", "Durum", "Fark ₺"];
-  const head = el("thead", {}, el("tr", {}, headers.map((h, i) => el("th", { scope: "col", class: i >= 2 && i !== 9 ? "num" : "" }, h))));
+  const headers = ["Malzeme", "Birim", "Devir", "Gelen", "Satıştan (reçete)", "Diğer kullanım (elle)", "Zayi", "Beklenen", "Sayılan", "Fark", "Durum", "Fark ₺"];
+  const head = el("thead", {}, el("tr", {}, headers.map((h, i) => el("th", { scope: "col", class: i >= 2 && i !== 10 ? "num" : "" }, h))));
+
+  // Menü satışları: adet girilince reçetedeki malzemelerin "Satıştan" değeri anında değişir.
+  const salesInputs = sheet.sales.map((x) => {
+    const input = el("input", { inputmode: "decimal", class: "qty", value: numForInput(x.quantity), disabled: !editable, "aria-label": `${x.name} satılan` });
+    input.addEventListener("input", () => {
+      const v = parseDecimal(input.value);
+      const bad = v === undefined;
+      input.classList.toggle("invalid", bad);
+      if (bad) return;
+      sales.set(x.product_id, v === null ? "0" : v);
+      dirty.sales.set(x.product_id, v === null ? "0" : v);
+      for (const r of rows) paint(r);
+      markDirty(); refreshSummary(); applyFilter();
+    });
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter") return;
+      ev.preventDefault();
+      const all = [...salesBox.querySelectorAll("input")];
+      const next = all[all.indexOf(input) + (ev.shiftKey ? -1 : 1)];
+      if (next) { next.focus(); next.select(); }
+    });
+    return el("label", {}, x.name, input);
+  });
+  const salesBox = el("div", { class: "sales-grid" }, salesInputs);
+  const salesCard = el("details", { class: "card sales no-print", open: sheet.sales.length > 0 && editable },
+    el("summary", {}, el("strong", {}, "Menü satışları"), el("span", { class: "hint" },
+      sheet.sales.length ? ` · ${sheet.sales.length} ürün · bu ay satılan adetler; reçeteye göre malzeme kullanımı hesaplanır` : " · menü ürünü yok — Menü & Reçeteler sayfasından ekleyin")),
+    sheet.sales.length ? salesBox : el("p", { class: "empty" }, can("item.manage") ? "Burgerlerinizi ve reçetelerini Menü & Reçeteler sayfasında tanımlayın." : "Menü ürünleri henüz tanımlanmadı."));
   const bodies = sheet.groups.map((g) => {
     const meta = el("span", { class: "gmeta" });
     const gtr = el("tr", { class: "group" }, el("th", { colspan: headers.length, scope: "rowgroup" }, g.name, meta));
@@ -231,11 +277,12 @@ function drawSheet(sheet) {
   };
   main().replaceChildren(
     pageHead(`Aylık Sayım — ${periodLabel(sheet.period)}`,
-      `${branchName()} · Devir: ${sheet.opening_from ? `${periodLabel(sheet.opening_from)} sayımından (kilitli)` : "önceki kapanmış ay yok, elle girilir"} · Beklenen = Devir + Gelen − Satılan/Kullanılan − Zayi · Fark = Sayılan − Beklenen`,
+      `${branchName()} · Devir: ${sheet.opening_from ? `${periodLabel(sheet.opening_from)} sayımından (kilitli)` : "önceki kapanmış ay yok, elle girilir"} · Beklenen = Devir + Gelen − Satıştan (reçete) − Satılan/Kullanılan − Zayi · Fark = Sayılan − Beklenen`,
       statusBadge(sheet.status)),
     el("div", { class: "card toolbar" }, monthInput(sheet.period, periodChange), el("label", {}, "Sayımı yapan", who),
       el("label", {}, "Sayım tarihi", when), el("label", { class: "grow" }, "Not", note)),
     summary,
+    salesCard,
     el("div", { class: "card toolbar no-print" }, el("label", { class: "grow" }, "Ara", search), el("label", {}, "Göster", filter), ...actions),
     editable ? el("p", { class: "hint no-print" }, "İpucu: Enter ile aynı sütunda alttaki ürüne geçilir, Shift+Enter yukarı. Ctrl+S kaydeder. Ondalık için virgül kullanabilirsiniz (12,5).") : null,
     el("div", { class: "table-wrap count" }, el("table", { class: "count-table" }, head, ...bodies)),
@@ -295,6 +342,20 @@ async function renderItems() {
     const unit = el("select", { disabled: !manage, "aria-label": `${i.name} birim` }, UNITS.map((u) => el("option", { value: u, selected: u === i.unit }, u)));
     const price = el("input", { inputmode: "decimal", class: "qty", value: i.unit_price === null ? "" : String(i.unit_price).replace(".", ","), disabled: !manage, "aria-label": `${i.name} birim fiyat` });
     const active = el("input", { type: "checkbox", checked: i.is_active, disabled: !manage, "aria-label": `${i.name} aktif` });
+    const cQty = el("input", { inputmode: "decimal", class: "qty", value: numForInput(i.content_qty), disabled: !manage, placeholder: "—", "aria-label": `${i.name} paket içeriği` });
+    const cUnit = el("select", { disabled: !manage, "aria-label": `${i.name} paket içeriği birimi` }, el("option", { value: "" }, "—"),
+      UNITS.map((u) => el("option", { value: u, selected: u === i.content_unit }, u)));
+    const saveContent = async () => {
+      const q = parseDecimal(cQty.value, 4, 7);
+      cQty.classList.toggle("invalid", q === undefined);
+      if (q === undefined) return;
+      if ((q === null) !== (cUnit.value === "")) return; // ikisi birlikte girilince kaydedilir
+      if (!(await patch({ content_qty: q, content_unit: cUnit.value || null }, "paket içeriği"))) {
+        cQty.value = numForInput(i.content_qty); cUnit.value = i.content_unit || "";
+      }
+    };
+    cQty.addEventListener("change", saveContent);
+    cUnit.addEventListener("change", saveContent);
     name.addEventListener("change", async () => {
       const v = name.value.trim().toLocaleUpperCase("tr-TR");
       if (!v || !(await patch({ name: v }, "ad"))) name.value = i.name; else name.value = v;
@@ -310,10 +371,11 @@ async function renderItems() {
       if (v !== undefined) patch({ unit_price: v }, "fiyat");
     });
     active.addEventListener("change", () => patch({ is_active: active.checked }, active.checked ? "aktif" : "pasif"));
-    const tr = el("tr", {}, el("td", {}, group), el("td", { class: "wrap" }, name), el("td", {}, unit), el("td", { class: "num" }, price), el("td", {}, active));
+    const tr = el("tr", {}, el("td", {}, group), el("td", { class: "wrap" }, name), el("td", {}, unit), el("td", { class: "num" }, price),
+      el("td", {}, el("span", { class: "pkg" }, `1 ${i.unit} =`, cQty, cUnit)), el("td", {}, active));
     return { i, tr };
   });
-  const tbl = table([["Grup"], ["Malzeme"], ["Birim"], ["Birim fiyat ₺", "num"], ["Aktif"]], rows.map((x) => x.tr), "Henüz ürün yok.");
+  const tbl = table([["Grup"], ["Malzeme"], ["Birim"], ["Birim fiyat ₺", "num"], ["Paket içeriği"], ["Aktif"]], rows.map((x) => x.tr), "Henüz ürün yok.");
   const counter = el("p", { class: "hint" });
   function applyFilter() {
     const q = search.value.trim().toLocaleLowerCase("tr-TR");
@@ -327,7 +389,7 @@ async function renderItems() {
   search.addEventListener("input", applyFilter);
   groupFilter.addEventListener("change", applyFilter);
 
-  const children = [pageHead("Ürün Listesi", "Birim fiyat (KDV hariç, ₺) girilen ürünlerde fark ve zayi TL olarak da hesaplanır. Pasif ürünler yeni sayımlarda görünmez; geçmiş sayımlar korunur. Kapatılmış aylar kapandıkları günkü fiyatı kullanır.")];
+  const children = [pageHead("Ürün Listesi", "Birim fiyat (KDV hariç, ₺) girilen ürünlerde fark ve zayi TL olarak da hesaplanır. Pasif ürünler yeni sayımlarda görünmez; geçmiş sayımlar korunur. Kapatılmış aylar kapandıkları günkü fiyatı kullanır. Paket içeriği: adetle sayılan ürünün içindeki miktar (örn. 1 ADET kova ketçap = 9,5 KG); reçetede gram yazılabilmesi için gerekir.")];
   if (manage) {
     const g = el("input", { name: "group", list: "groups", required: true, maxlength: 100 });
     const n = el("input", { name: "name", required: true, maxlength: 200 });

@@ -20,15 +20,17 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 | Devir önceki kapanmış aydan gelir ve kilitlenir; yeniden açılan ayda kilit kalkar | `tests/integration/test_monthly_count.py` |
 | Kapatma: tüm ürünler sayılmış ve "sayımı yapan" dolu olmalı; fiyatlar sabitlenir | `test_monthly_count.py` |
 | Excel: Beklenen/Fark/Fark ₺/Zayi ₺ gerçek formül; sütun-başlık kayması hata verir | `test_monthly_count.py` (Excel testi), `monthly_export.py` |
+| Reçete: menü satışı × reçete = "Satıştan"; GR→KG, ML→LT ve paket içeriği (1 ADET = 9,5 KG) çevrimi; kapatılan ay reçete değişince değişmez | `tests/integration/test_recipes.py`, `test_recipes_and_sales_through_ui` |
+| Veritabanı taşıma: `copy-from-if-empty` tek transaction, boş hedef ve aynı şema şartı | `tests/integration/test_copy.py` |
 | Panel, ay listesi toplamları, ürün geçmişi, şubeler özeti; panel ay oluşturmaz | `tests/integration/test_reports.py` |
 | Roller ve şube kapsamı; tenant izolasyonu; kaldırılan uç noktalar 404 | `tests/integration/test_security.py` |
 | Parola değişimi/sıfırlama ve rol değişimi oturumları kapatır | `test_management.py`, `test_reports.py` |
 | Değiştirilemez kayıt geçmişi (DB trigger), e-posta ve filtre ile | `test_schema.py`, `test_reports.py` |
-| Arayüz: canlı hesap, Enter ile gezinme, kaydedilmemiş değişiklik uyarısı, "Boşlara 0 yaz", rol bazlı menü, mobil düzen, XSS | `tests/ui/test_browser.py` (7 test, gerçek Chromium) |
+| Arayüz: canlı hesap, Enter ile gezinme, kaydedilmemiş değişiklik uyarısı, "Boşlara 0 yaz", rol bazlı menü, mobil düzen, XSS | `tests/ui/test_browser.py` (8 test, gerçek Chromium) |
 | Migration 0010 eski verili veritabanında | Elle denendi (2026-10-30): roller eşlendi, POS hesabı pasif, 9 tablo kaldı, `alembic check` temiz. Otomatik testi yok. |
 
 ## Bilinen sınırlar
-- Gelen ve satılan miktarlar elle girilir; POS veya fatura entegrasyonu yok (bilinçli olarak kaldırıldı).
+- Gelen miktarlar ve menü satış adetleri elle girilir; POS veya fatura entegrasyonu yok.
 - Zayi elle girilir ve nedeni tutulmaz; eksik zayi olarak yazılırsa açıklanamayan kayıp gizlenir.
 - Aynı ayı iki kişi aynı anda düzenlerse son kaydeden kazanır; satır bazlı çakışma uyarısı yok.
 - Excel'den sayım yükleme yok.

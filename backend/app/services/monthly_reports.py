@@ -130,7 +130,15 @@ def item_history(
     months = []
     for line, count in rows:
         price = line.unit_price if count.status == "closed" else item.unit_price
-        r = compute_line(line.opening, line.incoming, line.used, line.counted, price, line.waste)
+        r = compute_line(
+            line.opening,
+            line.incoming,
+            line.used,
+            line.counted,
+            price,
+            line.waste,
+            line.recipe_used,
+        )
         months.append(
             {
                 "period": count.period.strftime("%Y-%m"),
@@ -138,6 +146,7 @@ def item_history(
                 "opening": line.opening,
                 "incoming": line.incoming,
                 "used": line.used,
+                "recipe_used": line.recipe_used,
                 "waste": line.waste,
                 "expected": r.expected,
                 "counted": line.counted,

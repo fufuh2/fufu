@@ -335,3 +335,61 @@ def test_users_and_roles_through_ui(page, client, session: Session) -> None:
     _nav(page, "Ürün Listesi")
     sync_api.expect(page.get_by_label("DANA KIYMA birim fiyat")).to_be_disabled()
     assert page.errors == []
+
+
+def test_recipes_and_sales_through_ui(page, client, session: Session) -> None:
+    api = new_tenant(session, client)
+    branch = setup_branch(api)
+    items = {i["name"]: i["id"] for i in api.get("/count-items").json()}
+    page.goto("/ui/#/login")
+    page.evaluate("sessionStorage.setItem('period', '2026-08')")
+    _login(page, _owner_email(session))
+
+    # package content for a bucket counted in pieces
+    _nav(page, "Ürün Listesi")
+    page.get_by_label("KOVA KETÇAP paket içeriği", exact=True).fill("9,5")
+    page.get_by_label("KOVA KETÇAP paket içeriği birimi").select_option("KG")
+    sync_api.expect(page.locator("#msg")).to_contain_text("KOVA KETÇAP güncellendi")
+
+    _nav(page, "Menü & Reçeteler")
+    for name, sauce in (("Klasik Burger", "20"), ("Smash Burger", "15")):
+        page.get_by_label("Yeni menü ürünü").fill(name)
+        page.get_by_role("button", name="Ekle", exact=True).click()
+        sync_api.expect(page.locator("#msg")).to_contain_text(f"{name} eklendi")
+        page.get_by_label(f"{name} malzeme 1").select_option(items["YOUKİ SOS"])
+        page.get_by_label(f"{name} miktar 1").fill(sauce)
+        card = page.locator(".recipe-card", has=page.get_by_label(f"{name} malzeme 1"))
+        card.get_by_role("button", name="Malzeme ekle").click()
+        page.get_by_label(f"{name} malzeme 2").select_option(items["KOVA KETÇAP"])
+        page.get_by_label(f"{name} miktar 2").fill("19")
+        card.get_by_role("button", name="Reçeteyi kaydet").click()
+        sync_api.expect(page.locator("#msg")).to_contain_text(f"{name} reçetesi kaydedildi")
+    sync_api.expect(page.locator("main")).to_contain_text("= 0,02 KG / adet")
+
+    _nav(page, "Aylık Sayım")
+    page.get_by_label("Klasik Burger satılan").fill("120")
+    page.get_by_label("Smash Burger satılan").fill("80")
+    row = page.locator("tr", has=page.get_by_role("cell", name="YOUKİ SOS", exact=True))
+    # 120 × 20 g + 80 × 15 g = 3,6 kg, live before saving
+    sync_api.expect(row.locator("td.recipe")).to_have_text("3,6")
+    # 200 × 19 g = 3,8 kg = 0,4 bucket of 9,5 kg
+    kova = page.locator("tr", has=page.get_by_role("cell", name="KOVA KETÇAP", exact=True))
+    sync_api.expect(kova.locator("td.recipe")).to_have_text("0,4")
+    page.get_by_label("YOUKİ SOS opening").fill("5")
+    page.get_by_label("YOUKİ SOS counted").fill("1")
+    sync_api.expect(row).to_contain_text("1,4")  # expected 5 - 3,6
+    sync_api.expect(row).to_contain_text("-0,4")
+    page.get_by_role("button", name=re.compile("^Kaydet")).click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Sayım kaydedildi")
+    page.reload()
+    sync_api.expect(page.get_by_label("Klasik Burger satılan")).to_have_value("120")
+    sync_api.expect(row.locator("td.recipe")).to_have_text("3,6")
+    db = session.execute(
+        text(
+            "SELECT l.recipe_used FROM monthly_count_lines l JOIN count_items i "
+            "ON i.id = l.item_id WHERE i.name = 'YOUKİ SOS'"
+        )
+    ).scalar()
+    assert str(db) == "3.600"
+    assert branch
+    assert page.errors == []

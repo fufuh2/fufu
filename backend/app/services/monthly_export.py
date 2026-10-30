@@ -20,7 +20,8 @@ HEADERS = [
     "Birim",
     "Devir",
     "Gelen",
-    "Satılan / Kullanılan",
+    "Satıştan (reçete)",
+    "Satılan / Kullanılan (elle)",
     "Zayi",
     "Beklenen",
     "Sayılan",
@@ -30,7 +31,7 @@ HEADERS = [
     "Fark tutarı (₺)",
     "Zayi tutarı (₺)",
 ]
-WIDTHS = [26, 40, 8, 12, 12, 18, 10, 12, 12, 20, 12, 15, 16, 16]
+WIDTHS = [26, 40, 8, 12, 12, 16, 18, 10, 12, 12, 20, 12, 15, 16, 16]
 THIN = Side(style="thin", color="BBBBBB")
 BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 QTY_FMT = "#,##0.###"
@@ -90,15 +91,16 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
                 line["unit"],
                 _num(line["opening"]),
                 _num(line["incoming"]),
+                _num(line["recipe_used"]),
                 _num(line["used"]),
                 _num(line["waste"]),
-                f"=D{r}+E{r}-F{r}-G{r}",
+                f"=D{r}+E{r}-F{r}-G{r}-H{r}",
                 _num(line["counted"]),
-                f'=IF(I{r}="","",I{r}-H{r})',
+                f'=IF(J{r}="","",J{r}-I{r})',
                 STATUS_TR[line["status"]],
                 _num(line["unit_price"]),
-                f'=IF(OR(J{r}="",L{r}=""),"",J{r}*L{r})',
-                f'=IF(L{r}="","",G{r}*L{r})',
+                f'=IF(OR(K{r}="",M{r}=""),"",K{r}*M{r})',
+                f'=IF(M{r}="","",H{r}*M{r})',
             ]
             if len(values) != len(HEADERS):
                 # A silent shift would put numbers under the wrong headings.
@@ -106,15 +108,15 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
             for col, v in enumerate(values, start=1):
                 c = ws.cell(r, col, v)
                 c.border = BOX
-                if col in (4, 5, 6, 7, 8, 9, 10):
+                if col in (4, 5, 6, 7, 8, 9, 10, 11):
                     c.number_format = QTY_FMT
-                if col in (12, 13, 14):
+                if col in (13, 14, 15):
                     c.number_format = MONEY_FMT
             r += 1
     last = r - 1
     red = PatternFill("solid", fgColor="F8CBAD")
     green = PatternFill("solid", fgColor="C6EFCE")
-    rng = f"J{first}:J{last}"
+    rng = f"K{first}:K{last}"
     ws.conditional_formatting.add(rng, CellIsRule(operator="lessThan", formula=["0"], fill=red))
     ws.conditional_formatting.add(
         rng, CellIsRule(operator="greaterThan", formula=["0"], fill=green)
@@ -144,6 +146,14 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
     ws.print_title_rows = f"{head_row}:{head_row}"
+    sales = wb.create_sheet("Satışlar")
+    sales.append(["Menü ürünü", "Bu ay satılan"])
+    for cell in sales[1]:
+        cell.font = bold
+    for sale in sheet["sales"]:
+        sales.append([sale["name"], _num(sale["quantity"])])
+    sales.column_dimensions["A"].width = 40
+    sales.column_dimensions["B"].width = 16
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

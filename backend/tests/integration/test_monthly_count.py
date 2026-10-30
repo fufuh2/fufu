@@ -252,14 +252,15 @@ def test_excel_export(client, session: Session) -> None:
     ws = openpyxl.load_workbook(BytesIO(res.content)).active
     rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)}
     r = rows["PATATES"]
-    header = [ws.cell(rows["Malzeme"], c).value for c in range(1, 15)]
-    assert header[6] == "Zayi" and header[13] == "Zayi tutarı (₺)"
-    # devir 20 + gelen 100 - satılan 90 - zayi 3 = 27; sayılan 25 -> 2 eksik
-    assert [ws.cell(r, c).value for c in (3, 4, 5, 6, 7, 9)] == ["KG", 20, 100, 90, 3, 25]
-    assert ws.cell(r, 8).value == f"=D{r}+E{r}-F{r}-G{r}"
-    assert ws.cell(r, 10).value == f'=IF(I{r}="","",I{r}-H{r})'
-    assert ws.cell(r, 11).value == "EKSİK"
-    assert ws.cell(r, 14).value == f'=IF(L{r}="","",G{r}*L{r})'
+    header = [ws.cell(rows["Malzeme"], c).value for c in range(1, 16)]
+    assert header[5] == "Satıştan (reçete)" and header[7] == "Zayi"
+    assert header[14] == "Zayi tutarı (₺)"
+    # devir 20 + gelen 100 - reçete 0 - satılan 90 - zayi 3 = 27; sayılan 25 -> 2 eksik
+    assert [ws.cell(r, c).value for c in (3, 4, 5, 6, 7, 8, 10)] == ["KG", 20, 100, 0, 90, 3, 25]
+    assert ws.cell(r, 9).value == f"=D{r}+E{r}-F{r}-G{r}-H{r}"
+    assert ws.cell(r, 11).value == f'=IF(J{r}="","",J{r}-I{r})'
+    assert ws.cell(r, 12).value == "EKSİK"
+    assert ws.cell(r, 15).value == f'=IF(M{r}="","",H{r}*M{r})'
     assert "TAFF BURGER MERKEZ" in ws["A1"].value
 
 

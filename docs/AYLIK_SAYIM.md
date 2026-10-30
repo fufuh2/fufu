@@ -9,7 +9,8 @@ Adres: https://opsx-api.onrender.com/ui/ → giriş → **Panel** (açılış sa
 | Aylık Sayım | Sayım formu (aşağıda) |
 | Geçmiş Aylar | Her ayın durumu, sayan kişi, eksik/fazla/zayi/net fark ve stok değeri; tıklayınca o ay açılır; Excel |
 | Ürün Analizi | Bir ürünün ay ay devir, gelen, satılan, zayi, beklenen, sayılan, fark ve TL değerleri, fark grafiği |
-| Ürün Listesi | Ürün ekleme, ad / grup / birim / fiyat düzenleme, pasife alma, arama ve grup filtresi |
+| Ürün Listesi | Ürün ekleme, ad / grup / birim / fiyat / paket içeriği düzenleme, pasife alma, arama ve grup filtresi |
+| Menü & Reçeteler | Burgerler / menüler ve 1 adedinde kullanılan malzemeler (örn. Klasik Burger: 20 GR YOUKİ SOS, 150 GR DANA KIYMA, 1 ADET ekmek) |
 | Kullanıcılar | (İşletme sahibi) kullanıcı ekleme, rol ve şube atama, pasife alma, parola sıfırlama |
 | Şubeler | (İşletme sahibi) şube ekleme, ad değiştirme, pasife alma |
 | Kayıt Geçmişi | Kim, ne zaman, ne yaptı (sayım kaydı, ay kapatma, fiyat değişikliği, giriş…); değiştirilemez |
@@ -20,15 +21,29 @@ Adres: https://opsx-api.onrender.com/ui/ → giriş → **Panel** (açılış sa
 |---|---|
 | Devir | Ay başındaki miktar. Önceki ay **kapatıldıysa** onun "Sayılan" değeri gelir ve kilitlidir (🔒). İlk ayda elle girilir. |
 | Gelen | Ay içinde gelen (satın alınan) miktar |
-| Satılan / Kullanılan | Ay içinde satılan, kullanılan veya tüketilen miktar |
+| Satıştan (reçete) | **Otomatik:** ayın menü satışları × reçete. Bir sos birden çok burgerde kullanılıyorsa hepsinin toplamı |
+| Diğer kullanım (elle) | Reçetede olmayan kullanım (temizlik malzemesi, personel yemeği, ikram…) elle girilir |
 | Zayi | Bozulan, dökülen, son kullanma tarihi geçen veya atılan miktar |
-| **Beklenen** | **Devir + Gelen − Satılan/Kullanılan − Zayi** (otomatik) |
+| **Beklenen** | **Devir + Gelen − Satıştan (reçete) − Diğer kullanım − Zayi** (otomatik) |
 | Sayılan | Ay sonunda fiilen sayılan miktar |
 | **Fark** | **Sayılan − Beklenen** → artı: **FAZLA**, eksi: **EKSİK**, sıfır: **TAMAM** |
 | Fark ₺ | Fark × birim fiyat (Ürün Listesi'nde fiyat girilmişse) |
 
 Kayda geçirilen zayi "eksik" görünmez; kalan **eksik** açıklanamayan kayıptır. Sayılmamış ürün "SAYILMADI"
 görünür, sıfır kabul edilmez.
+
+## Soslar ve reçeteler
+Örnek: YOUKİ SOS Klasik Burger'de 20 gr, Smash Burger'de 15 gr. Ayda 120 Klasik ve 80 Smash satıldıysa
+120 × 20 + 80 × 15 = 3.600 gr = **3,6 KG** "Satıştan (reçete)" sütununa otomatik yazılır ve beklenenden düşülür.
+Sayılan miktar bundan azsa fark **EKSİK** çıkar: porsiyon fazla konuyor, zayi yazılmıyor ya da kayıp var demektir.
+
+1. **Menü & Reçeteler**: her burger / menü ürününü ekleyin; 1 adet için malzemeleri GR, KG, ML, LT veya ADET ile girin.
+2. Adetle sayılan ürünler (KOVA KETÇAP, BBQ SOS…) için **Ürün Listesi → Paket içeriği** girin (örn. 1 ADET = 9,5 KG).
+   Böylece reçetede 19 GR yazılabilir; 1000 satış × 19 gr = 19 kg = 2 kova düşülür.
+3. Her ay **Aylık Sayım → Menü satışları** kutusuna o ay satılan adetleri yazın (POS raporundan). Değerler anında hesaplanır.
+4. "Satıştan" hücresinin üzerine gelince hangi üründen ne kadar düşüldüğü görünür.
+
+Reçete değişirse **taslak** aylar yeniden hesaplanır; **kapatılmış** ay kapandığı günkü değeri korur.
 
 ## Ay sonu adımları
 1. Gelen, satılan/kullanılan ve zayi miktarlarını girin (ay boyunca da girilebilir). **Kaydet** veya Ctrl+S.
@@ -52,7 +67,8 @@ Hata fark edilirse **Yeniden aç** (neden zorunlu, kayda geçer). Sonraki ay kap
 | İzleyici | Atandığı şubelerin sayımlarını ve kayıtlarını görür |
 
 ## Bilinen sınırlar
-- Gelen ve satılan miktarlar elle girilir; POS veya fatura entegrasyonu yok.
+- Gelen miktarlar ve menü satış adetleri elle girilir; POS veya fatura entegrasyonu yok.
+- Reçete bir varsayımdır: gerçek porsiyon farkı "eksik/fazla" olarak görünür (amaç da budur).
 - Zayinin nedeni tutulmaz.
 - Aynı ayı iki kişi aynı anda düzenlerse son kaydeden kazanır.
 - Excel'den sayım yükleme yok.
