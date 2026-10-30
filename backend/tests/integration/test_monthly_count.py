@@ -140,6 +140,19 @@ def test_month_computes_and_next_month_carries_over(client, session: Session) ->
         },
     )
     assert _line(ok.json(), "DANA KIYMA")["status"] == "tamam"  # 12 + 40 - 50 = 2
+    # 1.5 kg zayi: expected drops to 0.5, counted 2 -> 1.5 fazla; zayi valued at 500 = 750
+    zw = _put(api, branch, "2026-09", {"lines": [{"item_id": kiyma, "waste": "1.5"}]}).json()
+    kz = _line(zw, "DANA KIYMA")
+    assert (kz["waste"], kz["expected"], kz["difference"], kz["status"], kz["waste_value"]) == (
+        "1.500",
+        "0.500",
+        "1.500",
+        "fazla",
+        "750.00",
+    )
+    assert zw["totals"]["waste_lines"] == 1 and zw["totals"]["waste_value"] == "750.00"
+    neg = _put(api, branch, "2026-09", {"lines": [{"item_id": kiyma, "waste": "-1"}]})
+    assert neg.status_code == 422
 
 
 def test_reopen_rules(client, session: Session) -> None:
@@ -227,7 +240,8 @@ def test_excel_export(client, session: Session) -> None:
                     "opening": "20",
                     "incoming": "100",
                     "used": "90",
-                    "counted": "28",
+                    "waste": "3",
+                    "counted": "25",
                 }
             ],
         },
@@ -238,9 +252,14 @@ def test_excel_export(client, session: Session) -> None:
     ws = openpyxl.load_workbook(BytesIO(res.content)).active
     rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)}
     r = rows["PATATES"]
-    assert [ws.cell(r, c).value for c in (3, 4, 5, 6, 8)] == ["KG", 20, 100, 90, 28]
-    assert ws.cell(r, 7).value == f"=D{r}+E{r}-F{r}"
-    assert ws.cell(r, 10).value == "EKSİK"
+    header = [ws.cell(rows["Malzeme"], c).value for c in range(1, 15)]
+    assert header[6] == "Zayi" and header[13] == "Zayi tutarı (₺)"
+    # devir 20 + gelen 100 - satılan 90 - zayi 3 = 27; sayılan 25 -> 2 eksik
+    assert [ws.cell(r, c).value for c in (3, 4, 5, 6, 7, 9)] == ["KG", 20, 100, 90, 3, 25]
+    assert ws.cell(r, 8).value == f"=D{r}+E{r}-F{r}-G{r}"
+    assert ws.cell(r, 10).value == f'=IF(I{r}="","",I{r}-H{r})'
+    assert ws.cell(r, 11).value == "EKSİK"
+    assert ws.cell(r, 14).value == f'=IF(L{r}="","",G{r}*L{r})'
     assert "TAFF BURGER MERKEZ" in ws["A1"].value
 
 

@@ -8,15 +8,19 @@ Adres: https://opsx-api.onrender.com/ui/ → giriş → **Aylık Sayım** (açı
 | Devir | Ay başındaki miktar. Önceki ay **kapatıldıysa** onun "Sayılan" değeri gelir ve kilitlidir (🔒). İlk ayda elle girilir. |
 | Gelen | Ay içinde gelen (satın alınan) miktar |
 | Satılan / Kullanılan | Ay içinde satılan, kullanılan veya tüketilen miktar |
-| **Beklenen** | **Devir + Gelen − Satılan/Kullanılan** (otomatik) |
+| Zayi | Bozulan, dökülen, son kullanma tarihi geçen veya atılan miktar |
+| **Beklenen** | **Devir + Gelen − Satılan/Kullanılan − Zayi** (otomatik) |
 | Sayılan | Ay sonunda fiilen sayılan miktar |
 | **Fark** | **Sayılan − Beklenen** → artı: **FAZLA**, eksi: **EKSİK**, sıfır: **TAMAM** |
 | Fark ₺ | Fark × birim fiyat (Ürün Listesi'nde fiyat girilmişse) |
 
+Zayi beklenenden düşüldüğü için, kayda geçirilen zayi "eksik" olarak görünmez; kalan **eksik**
+açıklanamayan kayıptır. Zayinin TL karşılığı (zayi × birim fiyat) özet kartında ve Excel'de ayrıca gösterilir.
+
 Sayılmamış ürün "SAYILMADI" görünür; sıfır kabul edilmez. Elde olmayan ürüne 0 yazın.
 
 ## Ay sonu adımları
-1. Gelen ve satılan/kullanılan miktarları girin (ay boyunca da girilebilir, **Kaydet**).
+1. Gelen, satılan/kullanılan ve zayi miktarlarını girin (ay boyunca da girilebilir, **Kaydet**).
 2. Sayımı yapın, **Sayılan** sütununu doldurun, "Sayımı yapan" adını yazın, **Kaydet**.
 3. Filtre ile **Eksikler / Fazlalar**'ı kontrol edin.
 4. **Ayı kapat**: tüm ürünler sayılmış olmalı. Kapatılan ay değiştirilemez; sayılanlar sonraki ayın devri olur ve o anki birim fiyatlar sabitlenir.

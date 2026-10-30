@@ -814,6 +814,7 @@ class MonthlyCountLine(Base):
         CheckConstraint("opening >= 0", name="ck_mcl_opening"),
         CheckConstraint("incoming >= 0", name="ck_mcl_incoming"),
         CheckConstraint("used >= 0", name="ck_mcl_used"),
+        CheckConstraint("waste >= 0", name="ck_mcl_waste"),
         CheckConstraint("counted IS NULL OR counted >= 0", name="ck_mcl_counted"),
     )
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -826,6 +827,10 @@ class MonthlyCountLine(Base):
     opening_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     incoming: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
     used: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
+    # Zayi: spoiled, spilled or thrown away. Deducted from expected, valued separately.
+    waste: Mapped[Decimal] = mapped_column(
+        Numeric(14, 3), nullable=False, default=Decimal("0"), server_default="0"
+    )
     counted: Mapped[Decimal | None] = mapped_column(Numeric(14, 3))
     # Price snapshot at close, so later price edits do not rewrite a closed month's value.
     unit_price: Mapped[Decimal | None] = mapped_column(MONEY)

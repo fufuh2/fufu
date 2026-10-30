@@ -1,6 +1,6 @@
 """Monthly inventory count (aylık sayım).
 
-One sheet per branch and month. Each line: opening (devir) + incoming (gelen) - used
+One sheet per branch and month. Each line: opening (devir) + incoming (gelen) - used - waste (zayi)
 (satılan/kullanılan) = expected; counted (sayılan) - expected = difference (fazla/eksik).
 The opening of a month is the counted quantity of the latest *closed* earlier month and is
 locked; without a closed earlier month it is entered by hand. A closed month is read-only
@@ -250,6 +250,7 @@ class LineUpdate:
     opening: Decimal | None = None
     incoming: Decimal | None = None
     used: Decimal | None = None
+    waste: Decimal | None = None
     counted: Decimal | None = None
     clear_counted: bool = False
     note: str | None = None
@@ -297,6 +298,8 @@ def save_lines(
             line.incoming = _qty(u.incoming, "gelen")
         if u.used is not None:
             line.used = _qty(u.used, "satılan/kullanılan")
+        if u.waste is not None:
+            line.waste = _qty(u.waste, "zayi")
         if u.clear_counted:
             line.counted = None
         elif u.counted is not None:
@@ -426,6 +429,8 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         "tamam": 0,
         "fazla_value": Decimal("0"),
         "eksik_value": Decimal("0"),
+        "waste_value": Decimal("0"),
+        "waste_lines": 0,
         "stock_value": Decimal("0"),
         "priced_items": 0,
     }
@@ -433,7 +438,7 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         if count.status == "draft" and not item.is_active:
             continue
         price = line.unit_price if count.status == "closed" else item.unit_price
-        r = compute_line(line.opening, line.incoming, line.used, line.counted, price)
+        r = compute_line(line.opening, line.incoming, line.used, line.counted, price, line.waste)
         g = groups.setdefault(
             item.group_name,
             {"name": item.group_name, "lines": [], "difference_value": Decimal("0")},
@@ -448,6 +453,8 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
                 "opening_locked": line.opening_locked,
                 "incoming": line.incoming,
                 "used": line.used,
+                "waste": line.waste,
+                "waste_value": r.waste_value,
                 "counted": line.counted,
                 "expected": r.expected,
                 "difference": r.difference,
@@ -469,6 +476,10 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
             totals[key] += r.difference_value
         if r.counted_value is not None:
             totals["stock_value"] += r.counted_value
+        if line.waste > 0:
+            totals["waste_lines"] += 1
+            if r.waste_value is not None:
+                totals["waste_value"] += r.waste_value
     totals["net_difference_value"] = totals["fazla_value"] + totals["eksik_value"]
     prev = session.scalar(
         select(MonthlyCount)

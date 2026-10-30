@@ -677,6 +677,7 @@ class CountLineIn(Strict):
     opening: CountQty | None = None
     incoming: CountQty | None = None
     used: CountQty | None = None
+    waste: CountQty | None = None
     counted: CountQty | None = None
     clear_counted: bool = False
     note: Annotated[str, Field(max_length=300)] | None = None

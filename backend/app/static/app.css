@@ -87,3 +87,4 @@ td.fazla { color: var(--ok); background: #eaf6ee; }
   .count-table input.qty { border: 0; background: none; width: 70px; }
   body { background: #fff; font-size: 11px; }
 }
+.kpi.zayi .v { color: var(--warn); }

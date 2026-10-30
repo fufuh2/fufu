@@ -319,6 +319,12 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
     sync_api.expect(row).to_contain_text("-3")
     sync_api.expect(row).to_contain_text("EKSİK")
     sync_api.expect(row).to_contain_text("1.200,00")
+    # 2 kg zayi is deducted: expected 13, difference -1 (-400 ₺); zayi 800 ₺ in the summary
+    page.get_by_label("DANA KIYMA waste").fill("2")
+    sync_api.expect(row).to_contain_text("13")
+    sync_api.expect(row).to_contain_text("-1")
+    sync_api.expect(row).to_contain_text("400,00")
+    sync_api.expect(page.locator(".kpi.zayi")).to_contain_text("800,00")
     page.get_by_label("PATATES counted").fill("12,5")  # Turkish decimal comma
     page.get_by_label("Sayımı yapan").fill("Ali Veli")
     page.get_by_role("button", name="Kaydet").click()
@@ -326,6 +332,7 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
 
     page.reload()
     sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_have_value("12")
+    sync_api.expect(page.get_by_label("DANA KIYMA waste")).to_have_value("2")
     sync_api.expect(page.get_by_label("PATATES counted")).to_have_value("12,5")
     sync_api.expect(page.get_by_label("Sayımı yapan")).to_have_value("Ali Veli")
     db = session.execute(

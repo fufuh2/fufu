@@ -117,6 +117,7 @@ function drawSheet(sheet) {
       el("td", { class: "num" }, mk("opening", line.opening, line.opening_locked)),
       el("td", { class: "num" }, mk("incoming", line.incoming, false)),
       el("td", { class: "num" }, mk("used", line.used, false)),
+      el("td", { class: "num" }, mk("waste", line.waste, false)),
       expected,
       el("td", { class: "num" }, mk("counted", line.counted, false)),
       diff, status, value);
@@ -127,13 +128,14 @@ function drawSheet(sheet) {
   }
 
   function compute(c) {
-    const e = milli(c.opening) + milli(c.incoming) - milli(c.used);
+    const e = milli(c.opening) + milli(c.incoming) - milli(c.used) - milli(c.waste);
     const k = milli(c.counted);
     const d = k === null ? null : k - e;
     const st = d === null ? "sayilmadi" : d > 0 ? "fazla" : d < 0 ? "eksik" : "tamam";
     const price = c.unit_price === null || c.unit_price === undefined ? null : Number(c.unit_price);
     const val = d === null || price === null ? null : Math.round((d / 1000) * price * 100) / 100;
-    return { expected: fromMilli(e), difference: fromMilli(d), status: st, value: val };
+    const wv = price === null ? null : Math.round((milli(c.waste) / 1000) * price * 100) / 100;
+    return { expected: fromMilli(e), difference: fromMilli(d), status: st, value: val, wasteValue: wv };
   }
 
   function paint(row) {
@@ -161,8 +163,9 @@ function drawSheet(sheet) {
   }
 
   function refreshSummary() {
-    let counted = 0, fazla = 0, eksik = 0, fv = 0, ev = 0;
+    let counted = 0, fazla = 0, eksik = 0, fv = 0, ev = 0, zayi = 0, zv = 0;
     for (const r of rows) {
+      if (milli(r.current.waste) > 0) { zayi += 1; zv += r.result.wasteValue || 0; }
       if (r.result.status !== "sayilmadi") counted += 1;
       if (r.result.status === "fazla") { fazla += 1; fv += r.result.value || 0; }
       if (r.result.status === "eksik") { eksik += 1; ev += r.result.value || 0; }
@@ -172,6 +175,7 @@ function drawSheet(sheet) {
       kpi(`${counted} / ${rows.length}`, "Sayılan ürün"),
       kpi(String(eksik), `Eksik ürün · ${money.format(ev)}`, "eksik"),
       kpi(String(fazla), `Fazla ürün · ${money.format(fv)}`, "fazla"),
+      kpi(String(zayi), `Zayi olan ürün · ${money.format(zv)}`, "zayi"),
       kpi(money.format(fv + ev), `Net fark (${sheet.value_coverage})`));
   }
 
@@ -222,17 +226,17 @@ function drawSheet(sheet) {
   actions.push(el("button", { type: "button", class: "secondary", onclick: () => downloadExcel(sheet.period) }, "Excel indir"));
   actions.push(el("button", { type: "button", class: "secondary", onclick: () => window.print() }, "Yazdır"));
 
-  const head = el("thead", {}, el("tr", {}, ["Malzeme", "Birim", "Devir", "Gelen", "Satılan / Kullanılan", "Beklenen", "Sayılan", "Fark", "Durum", "Fark ₺"]
-    .map((h, i) => el("th", { scope: "col", class: i >= 2 && i !== 8 ? "num" : "" }, h))));
+  const head = el("thead", {}, el("tr", {}, ["Malzeme", "Birim", "Devir", "Gelen", "Satılan / Kullanılan", "Zayi", "Beklenen", "Sayılan", "Fark", "Durum", "Fark ₺"]
+    .map((h, i) => el("th", { scope: "col", class: i >= 2 && i !== 9 ? "num" : "" }, h))));
   const bodies = sheet.groups.map((g) => el("tbody", {},
-    el("tr", { class: "group" }, el("th", { colspan: 10, scope: "rowgroup" }, g.name)),
+    el("tr", { class: "group" }, el("th", { colspan: 11, scope: "rowgroup" }, g.name)),
     ...g.lines.map((line) => lineRow(line))));
 
   main().replaceChildren(
     el("div", { class: "sheet-head" },
       el("h1", {}, `Aylık Sayım — ${periodLabel(sheet.period)}`),
       el("span", { class: `badge ${closed ? "ok" : "warn"}` }, closed ? "KAPATILDI" : "TASLAK")),
-    el("p", { class: "empty" }, `${branchName} · Devir: ${sheet.opening_from ? `${periodLabel(sheet.opening_from)} sayımından (kilitli)` : "önceki kapanmış ay yok, elle girilir"} · Beklenen = Devir + Gelen − Satılan/Kullanılan · Fark = Sayılan − Beklenen`),
+    el("p", { class: "empty" }, `${branchName} · Devir: ${sheet.opening_from ? `${periodLabel(sheet.opening_from)} sayımından (kilitli)` : "önceki kapanmış ay yok, elle girilir"} · Beklenen = Devir + Gelen − Satılan/Kullanılan − Zayi · Fark = Sayılan − Beklenen`),
     el("div", { class: "card toolbar" }, monthPicker(sheet.period), el("label", {}, "Sayımı yapan", who),
       el("label", {}, "Sayım tarihi", when), el("label", { class: "grow" }, "Not", note)),
     summary,

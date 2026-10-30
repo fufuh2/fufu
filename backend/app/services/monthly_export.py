@@ -21,14 +21,16 @@ HEADERS = [
     "Devir",
     "Gelen",
     "Satılan / Kullanılan",
+    "Zayi",
     "Beklenen",
     "Sayılan",
     "Fark (+fazla / −eksik)",
     "Durum",
     "Birim fiyat (₺)",
     "Fark tutarı (₺)",
+    "Zayi tutarı (₺)",
 ]
-WIDTHS = [26, 40, 8, 12, 12, 18, 12, 12, 20, 12, 15, 16]
+WIDTHS = [26, 40, 8, 12, 12, 18, 10, 12, 12, 20, 12, 15, 16, 16]
 THIN = Side(style="thin", color="BBBBBB")
 BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 QTY_FMT = "#,##0.###"
@@ -89,25 +91,30 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
                 _num(line["opening"]),
                 _num(line["incoming"]),
                 _num(line["used"]),
-                f"=D{r}+E{r}-F{r}",
+                _num(line["waste"]),
+                f"=D{r}+E{r}-F{r}-G{r}",
                 _num(line["counted"]),
-                f'=IF(H{r}="","",H{r}-G{r})',
+                f'=IF(I{r}="","",I{r}-H{r})',
                 STATUS_TR[line["status"]],
                 _num(line["unit_price"]),
-                f'=IF(OR(I{r}="",K{r}=""),"",I{r}*K{r})',
+                f'=IF(OR(J{r}="",L{r}=""),"",J{r}*L{r})',
+                f'=IF(L{r}="","",G{r}*L{r})',
             ]
+            if len(values) != len(HEADERS):
+                # A silent shift would put numbers under the wrong headings.
+                raise RuntimeError("export columns do not match headers")
             for col, v in enumerate(values, start=1):
                 c = ws.cell(r, col, v)
                 c.border = BOX
-                if col in (4, 5, 6, 7, 8, 9):
+                if col in (4, 5, 6, 7, 8, 9, 10):
                     c.number_format = QTY_FMT
-                if col in (11, 12):
+                if col in (12, 13, 14):
                     c.number_format = MONEY_FMT
             r += 1
     last = r - 1
     red = PatternFill("solid", fgColor="F8CBAD")
     green = PatternFill("solid", fgColor="C6EFCE")
-    rng = f"I{first}:I{last}"
+    rng = f"J{first}:J{last}"
     ws.conditional_formatting.add(rng, CellIsRule(operator="lessThan", formula=["0"], fill=red))
     ws.conditional_formatting.add(
         rng, CellIsRule(operator="greaterThan", formula=["0"], fill=green)
@@ -123,6 +130,8 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
         ("Fazla tutarı (₺)", _num(t["fazla_value"])),
         ("Eksik tutarı (₺)", _num(t["eksik_value"])),
         ("Net fark (₺)", _num(t["net_difference_value"])),
+        ("Zayi olan ürün", t["waste_lines"]),
+        ("Zayi tutarı (₺)", _num(t["waste_value"])),
         ("Sayılan stok değeri (₺)", _num(t["stock_value"])),
         ("Not", sheet["value_coverage"]),
     ]

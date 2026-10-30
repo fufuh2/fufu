@@ -152,3 +152,14 @@ class TestMonthlyCount:
         for bad in ("2026-13", "26-08", "2026/08", "2026-8", "abcd-ef"):
             with pytest.raises(ValueError):
                 parse_period(bad)
+
+    def test_waste_is_deducted_and_valued(self) -> None:
+        from app.domain.monthly import compute_line
+
+        # devir 10 + gelen 50 - satılan 45 - zayi 2 = 13 beklenen; sayılan 12 -> 1 eksik
+        r = compute_line(D("10"), D("50"), D("45"), D("12"), D("400"), D("2"))
+        assert (r.expected, r.difference, r.status) == (D("13"), D("-1"), "eksik")
+        assert (r.difference_value, r.waste_value) == (D("-400.00"), D("800.00"))
+        # recorded waste explains the loss: no unexplained difference left
+        r = compute_line(D("10"), D("0"), D("0"), D("7"), None, D("3"))
+        assert (r.status, r.waste_value) == ("tamam", None)

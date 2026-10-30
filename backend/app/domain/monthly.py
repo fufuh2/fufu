@@ -1,9 +1,10 @@
 """Monthly count arithmetic. Pure functions, Decimal only.
 
-expected   = opening + incoming - used
+expected   = opening + incoming - used - waste   (zayi düşülür)
 difference = counted - expected            (None until the item is counted)
 status     = "fazla" (> 0) | "eksik" (< 0) | "tamam" (= 0) | "sayilmadi" (not counted)
 value      = difference * unit_price       (None when the price is unknown)
+waste_value = waste * unit_price           (recorded loss, shown separately from the difference)
 """
 
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ class LineResult:
     status: str
     difference_value: Decimal | None
     counted_value: Decimal | None
+    waste_value: Decimal | None = None
 
 
 def compute_line(
@@ -28,20 +30,25 @@ def compute_line(
     used: Decimal,
     counted: Decimal | None,
     unit_price: Decimal | None,
+    waste: Decimal = Decimal("0"),
 ) -> LineResult:
-    expected = (opening + incoming - used).quantize(Q3, rounding=ROUND_HALF_EVEN)
+    expected = (opening + incoming - used - waste).quantize(Q3, rounding=ROUND_HALF_EVEN)
+    waste_value = (
+        None if unit_price is None else (waste * unit_price).quantize(Q2, rounding=ROUND_HALF_EVEN)
+    )
     if counted is None:
-        return LineResult(expected, None, "sayilmadi", None, None)
+        return LineResult(expected, None, "sayilmadi", None, None, waste_value)
     diff = (counted - expected).quantize(Q3, rounding=ROUND_HALF_EVEN)
     status = "fazla" if diff > 0 else "eksik" if diff < 0 else "tamam"
     if unit_price is None:
-        return LineResult(expected, diff, status, None, None)
+        return LineResult(expected, diff, status, None, None, None)
     return LineResult(
         expected,
         diff,
         status,
         (diff * unit_price).quantize(Q2, rounding=ROUND_HALF_EVEN),
         (counted * unit_price).quantize(Q2, rounding=ROUND_HALF_EVEN),
+        waste_value,
     )
 
 
