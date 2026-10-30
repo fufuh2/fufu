@@ -177,3 +177,5 @@ legend { font-size: 13px; color: var(--muted); margin-bottom: 4px; padding: 0; }
 .pkg input.qty { width: 80px; text-align: right; }
 .recipe-card table { margin: 8px 0; }
 .recipe-card select { max-width: 340px; }
+.warn-cell { color: var(--bad); font-size: 12px; white-space: normal; max-width: 320px; }
+.warn-box { border-color: #e9c46a; background: var(--warn-bg); color: var(--warn); }

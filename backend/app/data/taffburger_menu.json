@@ -1,0 +1,89 @@
+{
+  "source": "Taff Burger menü panoları (et, tavuk ve light burgerler), fotoğraf 2026-10-30. Miktarlar 1 adet içindir.",
+  "notes": [
+    "Menüde ekmek yazmıyor; Balance (marul sarma) hariç her burgere 1 ADET HAMBURGER EKMEĞİ eklendi.",
+    "'2x75 gr et' = 150 GR DANA KIYMA; Royale 3x75 = 225 GR. Balance 'burger köftesi' de DANA KIYMA sayıldı.",
+    "Cheddar dilim (ADET), salatalık / halka turşusu adet olarak yazıldı: Ürün Listesi'nde '1 KG = kaç adet' girilene kadar düşülmez.",
+    "Tahmin: salatalık turşusu = KÜHNE ALMAN TURŞU, karamelize soğan = FAKE SOĞANI, kırmızı soğan turşusu = SOĞAN TURŞUSU, özel barbekü = BBO SOS, ketçap / hardal = TOP DOWN, mayonez = KOVA MAYONEZ.",
+    "Shogun'un menü metninde tavuk yazmıyor; reçeteye tavuk eklenmedi."
+  ],
+  "extra_items": [
+    {"name": "KAPLAMALI TAVUK", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "ICEBERG", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "DOMATES", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "KIRMIZI SOĞAN", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "KURU SOĞAN", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "JALAPENO BİBERİ", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "DORİTOS", "group": "Gıda Ürünleri", "unit": "KG"},
+    {"name": "FALAFEL", "group": "Gıda Ürünleri", "unit": "ADET"},
+    {"name": "MÜCVER", "group": "Gıda Ürünleri", "unit": "ADET"},
+    {"name": "DYNAMITE SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "SEUL SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "MEXICAN SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "ROYALE SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "BACON JAM SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "TSO SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "PARMESAN GARLIC SOS", "group": "Mutfak Sosları", "unit": "KG"},
+    {"name": "TAHİN SOS", "group": "Mutfak Sosları", "unit": "KG"}
+  ],
+  "products": [
+    {"name": "YOUKI", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["TRÜFLÜ MAYONEZ", "75", "GR"],
+      ["KÜHNE ALMAN TURŞU", "4", "ADET"], ["YOUKİ SOS", "75", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "FAKE DONALD'S", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["ICEBERG", "50", "GR"],
+      ["FAKE DONALD'S SOS", "150", "GR"], ["KÜHNE ALMAN TURŞU", "4", "ADET"], ["FAKE SOĞANI", "50", "GR"],
+      ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "CHEESE BURGER", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["TOP DOWN HARDAL", "75", "GR"],
+      ["TOP DOWN KETÇAP", "75", "GR"], ["KÜHNE ALMAN TURŞU", "4", "ADET"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "TRUFFLE", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["ICEBERG", "50", "GR"],
+      ["TRÜFLÜ MAYONEZ", "150", "GR"], ["KÜHNE ALMAN TURŞU", "4", "ADET"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "COY", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["COY SOS", "150", "GR"],
+      ["SOĞAN KITIRI", "30", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "LILLY", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["KEÇİ BÜŞÜ KREMASI", "150", "GR"],
+      ["LİLLY SOS", "75", "GR"], ["SOĞAN TURŞUSU", "30", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "DIPLOMAT", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["DANA FÜME", "50", "GR"],
+      ["DORİTOS", "10", "GR"], ["DİPLOMAT SOS", "150", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "ROYALE", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "225", "GR"], ["CHEDAR PEYNİRİ", "3", "ADET"], ["ROYALE SOS", "75", "GR"],
+      ["BACON JAM SOS", "75", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "EL TORATO", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["MEXICAN SOS", "75", "GR"],
+      ["JALAPENO BİBERİ", "10", "GR"], ["DYNAMITE SOS", "75", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "NORI", "category": "Et Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["CHEDAR PEYNİRİ", "2", "ADET"], ["SEUL SOS", "75", "GR"],
+      ["SOĞAN KITIRI", "25", "GR"], ["DYNAMITE SOS", "75", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "CHEESE TAO", "category": "Tavuk Burgerler", "lines": [
+      ["KAPLAMALI TAVUK", "120", "GR"], ["CHEDAR PEYNİRİ", "1", "ADET"], ["ICEBERG", "50", "GR"],
+      ["HALKA TURŞU", "4", "ADET"], ["YOUKİ SOS", "150", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "NASH", "category": "Tavuk Burgerler", "lines": [
+      ["KAPLAMALI TAVUK", "120", "GR"], ["CHEDAR PEYNİRİ", "1", "ADET"], ["DANA FÜME", "50", "GR"],
+      ["SOĞAN KITIRI", "50", "GR"], ["BBO SOS", "150", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "SEUL", "category": "Tavuk Burgerler", "lines": [
+      ["KAPLAMALI TAVUK", "120", "GR"], ["CHEDAR PEYNİRİ", "1", "ADET"], ["SOĞAN KITIRI", "50", "GR"],
+      ["SEUL SOS", "75", "GR"], ["DYNAMITE SOS", "75", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "OVERDOSE", "category": "Tavuk Burgerler", "lines": [
+      ["KAPLAMALI TAVUK", "120", "GR"], ["CHEDAR PEYNİRİ", "1", "ADET"], ["ICEBERG", "50", "GR"],
+      ["TSO SOS", "150", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "SHOGUN", "category": "Tavuk Burgerler", "lines": [
+      ["ICEBERG", "50", "GR"], ["KURU SOĞAN", "10", "GR"], ["HALKA TURŞU", "4", "ADET"],
+      ["PARMESAN GARLIC SOS", "150", "GR"], ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "TAFF CHICKEN", "category": "Tavuk Burgerler", "lines": [
+      ["KAPLAMALI TAVUK", "120", "GR"], ["CHEDAR PEYNİRİ", "1", "ADET"], ["BBO SOS", "150", "GR"],
+      ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "NOUR", "category": "Light Burgerler", "lines": [
+      ["FALAFEL", "1", "ADET"], ["FAKE SOĞANI", "15", "GR"], ["TAHİN SOS", "150", "GR"],
+      ["HAMBURGER EKMEĞİ", "1", "ADET"]]},
+    {"name": "BALANCE", "category": "Light Burgerler", "lines": [
+      ["DANA KIYMA", "150", "GR"], ["ICEBERG", "150", "GR"], ["KIRMIZI SOĞAN", "15", "GR"],
+      ["DOMATES", "50", "GR"], ["PARMESAN GARLIC SOS", "100", "GR"]]},
+    {"name": "PUMPKIN CARROT", "category": "Light Burgerler", "lines": [
+      ["MÜCVER", "1", "ADET"], ["ICEBERG", "50", "GR"], ["KOVA MAYONEZ", "150", "GR"],
+      ["HAMBURGER EKMEĞİ", "1", "ADET"]]}
+  ]
+}

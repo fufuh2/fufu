@@ -114,8 +114,6 @@ def update_item(
         setattr(item, key, value.strip() if isinstance(value, str) else value)
     if (item.content_qty is None) != (item.content_unit is None):
         raise Invalid("paket içeriği için miktar ve birim birlikte girilmeli")
-    if {"unit", "content_qty", "content_unit"} & fields.keys():
-        menu.check_item_still_convertible(session, item)
     try:
         session.flush()
     except IntegrityError as exc:
@@ -555,11 +553,13 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         if count.status == "draft"
         else None
     )
+    warnings = menu.unconverted(session, count.tenant_id) if count.status == "draft" else []
     return {
         "id": count.id,
         "branch_id": count.branch_id,
         "sales": products,
         "recipes": recipes,
+        "recipe_warnings": warnings,
         "period": count.period.strftime("%Y-%m"),
         "status": count.status,
         "counted_by_name": count.counted_by_name,

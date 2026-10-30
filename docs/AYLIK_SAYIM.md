@@ -45,6 +45,18 @@ Sayılan miktar bundan azsa fark **EKSİK** çıkar: porsiyon fazla konuyor, zay
 
 Reçete değişirse **taslak** aylar yeniden hesaplanır; **kapatılmış** ay kapandığı günkü değeri korur.
 
+### Hazır menü (19 burger)
+**Menü & Reçeteler → Taff Burger menüsünü yükle**, menü panolarındaki et, tavuk ve light burgerleri
+(`backend/app/data/taffburger_menu.json`) yükler. Rapor iki eksik gösterir:
+- **Sayım listesinde olmayan malzemeler** (Iceberg, kaplamalı tavuk, Dynamite/Seul/Mexican/Royale/Bacon Jam/TSO/
+  Parmesan Garlic/Tahin sos, domates, soğanlar, jalapeno, Doritos, falafel, mücver): butonla listeye eklenip reçetelere bağlanır.
+- **Çevrimi eksik malzemeler**: cheddar (dilim), salatalık ve halka turşusu (adet), adetle sayılan ketçap / hardal /
+  mayonez / BBQ. Ürün Listesi'nde paket içeriği girilene kadar (örn. 1 KG cheddar = 50 ADET) düşülmez; sayım formu uyarır.
+
+Varsayımlar rapordadır: ekmek her burgere 1 adet (Balance hariç), salatalık turşusu = KÜHNE ALMAN TURŞU,
+karamelize soğan = FAKE SOĞANI, özel barbekü = BBO SOS, ketçap/hardal = TOP DOWN, mayonez = KOVA MAYONEZ.
+Shogun'un menü metninde tavuk yok; gerekiyorsa reçeteye elle ekleyin.
+
 ## Ay sonu adımları
 1. Gelen, satılan/kullanılan ve zayi miktarlarını girin (ay boyunca da girilebilir). **Kaydet** veya Ctrl+S.
 2. Sayımı yapın, **Sayılan** sütununu doldurun. Enter aynı sütunda alttaki ürüne geçer, Shift+Enter yukarı.

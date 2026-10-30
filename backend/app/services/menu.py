@@ -1,8 +1,10 @@
 """Menu products and their recipes. Monthly sales × recipe = the "Satıştan (reçete)" usage of
 each count item, e.g. 120 Klasik × 20 GR + 80 Smash × 15 GR = 3.6 KG YOUKİ SOS."""
 
+import json
 import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -15,6 +17,8 @@ from app.errors import Conflict, Invalid, NotFound
 from app.models import COUNT_UNITS, CountItem, MenuProduct, MonthlySale, RecipeLine
 from app.security import Actor
 from app.services import audit
+
+DEFAULT_MENU = Path(__file__).resolve().parent.parent / "data" / "taffburger_menu.json"
 
 
 def _per_unit(line: RecipeLine, item: CountItem) -> Decimal | None:
@@ -56,6 +60,7 @@ def list_products(session: Session, actor: Actor) -> list[dict[str, Any]]:
                 "item_unit": item.unit,
                 "quantity": line.quantity,
                 "unit": line.unit,
+                # None: not deducted until the item's package content is entered
                 "per_item_unit": None if per is None else per.quantize(Decimal("0.000001")),
             }
         )
@@ -118,7 +123,9 @@ def set_recipe(
     product_id: uuid.UUID,
     lines: list[tuple[uuid.UUID, Decimal, str]],
 ) -> MenuProduct:
-    """Replaces the recipe. Every unit must convert into the unit the item is counted in."""
+    """Replaces the recipe. A line whose unit cannot be converted yet (2 ADET cheddar for an item
+    counted in KG, before its package content is entered) is kept but not deducted; the count
+    sheet warns about it."""
     actor.require(Perm.ITEM_MANAGE)
     p = _product(session, actor, product_id)
     seen: set[uuid.UUID] = set()
@@ -134,13 +141,7 @@ def set_recipe(
         )
         if item is None:
             raise NotFound("malzeme bulunamadı")
-        line = RecipeLine(product_id=p.id, item_id=item.id, quantity=qty, unit=unit)
-        if _per_unit(line, item) is None:
-            raise Invalid(
-                f"{item.name} {item.unit} ile sayılıyor; {unit} çevrilemiyor. "
-                f"Ürün Listesi'nde paket içeriğini girin (örn. 1 {item.unit} = 9,5 KG)."
-            )
-        new.append(line)
+        new.append(RecipeLine(product_id=p.id, item_id=item.id, quantity=qty, unit=unit))
     session.execute(delete(RecipeLine).where(RecipeLine.product_id == p.id))
     session.add_all(new)
     audit.record(
@@ -155,22 +156,112 @@ def set_recipe(
     return p
 
 
-def check_item_still_convertible(session: Session, item: CountItem) -> None:
-    """Called before an item's unit or package content changes."""
-    bad = [
-        name
-        for line, name in session.execute(
-            select(RecipeLine, MenuProduct.name)
-            .join(MenuProduct, MenuProduct.id == RecipeLine.product_id)
-            .where(RecipeLine.item_id == item.id)
+def unconverted(session: Session, tenant_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Recipe lines that are not deducted because their unit does not convert yet."""
+    out: dict[uuid.UUID, dict[str, Any]] = {}
+    for line, item, product in session.execute(
+        select(RecipeLine, CountItem, MenuProduct)
+        .join(CountItem, CountItem.id == RecipeLine.item_id)
+        .join(MenuProduct, MenuProduct.id == RecipeLine.product_id)
+        .where(MenuProduct.tenant_id == tenant_id)
+        .order_by(CountItem.sort_order, MenuProduct.sort_order)
+    ):
+        if _per_unit(line, item) is None:
+            w = out.setdefault(
+                item.id,
+                {
+                    "item_id": item.id,
+                    "item_name": item.name,
+                    "item_unit": item.unit,
+                    "recipe_units": [],
+                    "products": [],
+                },
+            )
+            if line.unit not in w["recipe_units"]:
+                w["recipe_units"].append(line.unit)
+            w["products"].append(product.name)
+    return list(out.values())
+
+
+def load_default_menu(session: Session, actor: Actor, add_missing: bool) -> dict[str, Any]:
+    """Loads the burgers from the restaurant's menu boards. Existing products keep what the
+    user entered; only recipe lines for items not yet in their recipe are added, so running it
+    again after adding the missing ingredients completes the recipes."""
+    actor.require(Perm.ITEM_MANAGE)
+    data = json.loads(DEFAULT_MENU.read_text(encoding="utf-8"))
+    items = {
+        i.name: i
+        for i in session.scalars(select(CountItem).where(CountItem.tenant_id == actor.tenant_id))
+    }
+    added_items = []
+    if add_missing:
+        last = max((i.sort_order for i in items.values()), default=0)
+        for extra in data["extra_items"]:
+            if extra["name"] in items:
+                continue
+            last += 10
+            item = CountItem(
+                tenant_id=actor.tenant_id,
+                group_name=extra["group"],
+                name=extra["name"],
+                unit=extra["unit"],
+                sort_order=last,
+            )
+            session.add(item)
+            items[item.name] = item
+            added_items.append(item.name)
+        session.flush()
+    products = {
+        p.name: p
+        for p in session.scalars(
+            select(MenuProduct).where(MenuProduct.tenant_id == actor.tenant_id)
         )
-        if _per_unit(line, item) is None
-    ]
-    if bad:
-        raise Invalid(
-            f"{item.name} şu reçetelerde kullanılıyor ve yeni birime çevrilemiyor: "
-            f"{', '.join(sorted(bad))}"
+    }
+    last_p = max((p.sort_order for p in products.values()), default=0)
+    added_products, added_lines = [], 0
+    missing: dict[str, list[str]] = {}
+    for spec in data["products"]:
+        product = products.get(spec["name"])
+        if product is None:
+            last_p += 10
+            product = MenuProduct(tenant_id=actor.tenant_id, name=spec["name"], sort_order=last_p)
+            session.add(product)
+            session.flush()
+            added_products.append(product.name)
+        have = set(
+            session.scalars(select(RecipeLine.item_id).where(RecipeLine.product_id == product.id))
         )
+        for name, qty, unit in spec["lines"]:
+            found = items.get(name)
+            if found is None:
+                missing.setdefault(name, []).append(spec["name"])
+                continue
+            if found.id in have:
+                continue
+            session.add(
+                RecipeLine(
+                    product_id=product.id, item_id=found.id, quantity=Decimal(qty), unit=unit
+                )
+            )
+            added_lines += 1
+    session.flush()
+    audit.record(
+        session,
+        actor,
+        "menu_product.load_defaults",
+        "menu_product",
+        None,
+        {"added": len(added_products), "lines": added_lines, "items": len(added_items)},
+    )
+    session.commit()
+    return {
+        "added_products": added_products,
+        "added_lines": added_lines,
+        "added_items": added_items,
+        "missing_items": [{"name": k, "products": v} for k, v in missing.items()],
+        "unconverted": unconverted(session, actor.tenant_id),
+        "notes": data["notes"],
+    }
 
 
 def recipes_by_item(session: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID, list[tuple]]:

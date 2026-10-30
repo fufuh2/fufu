@@ -393,3 +393,24 @@ def test_recipes_and_sales_through_ui(page, client, session: Session) -> None:
     assert str(db) == "3.600"
     assert branch
     assert page.errors == []
+
+
+def test_menu_boards_through_ui(page, client, session: Session) -> None:
+    api = new_tenant(session, client)
+    setup_branch(api)
+    _login(page, _owner_email(session))
+    _nav(page, "Menü & Reçeteler")
+    page.get_by_role("button", name="Taff Burger menüsünü yükle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("19 menü ürünü")
+    report = page.locator("#menu-report")
+    sync_api.expect(report).to_contain_text("Sayım listesinde olmayan 17 malzeme")
+    sync_api.expect(report).to_contain_text("CHEDAR PEYNİRİ")
+    page.get_by_role("button", name=re.compile("malzemeyi Ürün Listesi'ne ekle")).click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("17 yeni malzeme")
+    sync_api.expect(page.get_by_label("Menü ürünü adı").first).to_have_value("YOUKI")
+    sync_api.expect(page.locator("main")).to_contain_text("= 0,075 KG / adet")
+    sync_api.expect(page.locator("main")).to_contain_text("düşülmüyor")
+    _nav(page, "Aylık Sayım")
+    sync_api.expect(page.locator(".warn-box")).to_contain_text("CHEDAR PEYNİRİ")
+    sync_api.expect(page.get_by_label("YOUKI satılan")).to_be_visible()
+    assert page.errors == []

@@ -151,6 +151,12 @@ def list_menu_products(actor: ActorDep, session: SessionDep) -> Any:
     return menu.list_products(session, actor)
 
 
+@router.post("/menu-products/load-defaults")
+def load_default_menu(actor: ActorDep, session: SessionDep, add_missing_items: bool = False) -> Any:
+    """Taff Burger menu boards; add_missing_items also adds ingredients missing from the list."""
+    return menu.load_default_menu(session, actor, add_missing_items)
+
+
 @router.post("/menu-products", status_code=201)
 def create_menu_product(body: s.MenuProductIn, actor: ActorDep, session: SessionDep) -> Any:
     p = menu.create_product(session, actor, body.name)

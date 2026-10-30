@@ -134,23 +134,23 @@ def test_package_items_need_content(client, session: Session) -> None:
     items = _items(api)
     pid = api.post("/menu-products", {"name": "Patates Menü"}).json()["id"]
     line = {"item_id": items["KOVA KETÇAP"], "quantity": "19", "unit": "GR"}
+    # saved, but not deducted until the bucket's content is known; the sheet says so
     res = api.put(f"/menu-products/{pid}/recipe", {"lines": [line]})
-    assert res.status_code == 422 and "paket içeriğini" in res.json()["detail"]["message"]
-    api.patch(f"/count-items/{items['KOVA KETÇAP']}", {"content_qty": "9.5", "content_unit": "KG"})
-    assert api.put(f"/menu-products/{pid}/recipe", {"lines": [line]}).status_code == 200
+    assert res.status_code == 200 and res.json()["recipe"][0]["per_item_unit"] is None
     sheet = api.put(
         f"/branches/{branch}/monthly-counts/{P}",
         {"sales": [{"product_id": pid, "quantity": "1000"}]},
     ).json()
+    assert D(str(_line(sheet, "KOVA KETÇAP")["recipe_used"])) == D("0")
+    assert [
+        (w["item_name"], w["recipe_units"], w["products"]) for w in sheet["recipe_warnings"]
+    ] == [("KOVA KETÇAP", ["GR"], ["Patates Menü"])]
+    api.patch(f"/count-items/{items['KOVA KETÇAP']}", {"content_qty": "9.5", "content_unit": "KG"})
+    sheet = api.get(f"/branches/{branch}/monthly-counts/{P}").json()
     # 1000 × 19 g = 19 kg = 2 buckets of 9.5 kg
     assert D(str(_line(sheet, "KOVA KETÇAP")["recipe_used"])) == D("2")
-    # the content cannot be removed while a recipe needs it
-    res = api.patch(
-        f"/count-items/{items['KOVA KETÇAP']}", {"content_qty": None, "content_unit": None}
-    )
-    assert res.status_code == 422 and "Patates Menü" in res.json()["detail"]["message"]
-    res = api.patch(f"/count-items/{items['KOVA KETÇAP']}", {"content_qty": "1"})
-    assert res.status_code == 200
+    assert sheet["recipe_warnings"] == []
+    # half-filled content is rejected
     res = api.patch(f"/count-items/{items['KOVA KETÇAP']}", {"content_unit": None})
     assert res.status_code == 422
     # sales back to 0 removes the usage
@@ -159,6 +159,59 @@ def test_package_items_need_content(client, session: Session) -> None:
         {"sales": [{"product_id": pid, "quantity": "0"}]},
     ).json()
     assert D(str(_line(sheet, "KOVA KETÇAP")["recipe_used"])) == D("0")
+
+
+def test_cheddar_slices_through_content(client, session: Session) -> None:
+    # cheddar is counted in KG; "1 KG = 50 ADET" lets the recipe say 2 slices
+    assert to_item_units(D("2"), "ADET", "KG", D("50"), "ADET") == D("0.04")
+
+
+def test_menu_boards_loaded(client, session: Session) -> None:
+    api = new_tenant(session, client)
+    branch = setup_branch(api)
+    res = api.post("/menu-products/load-defaults")
+    assert res.status_code == 200, res.text
+    r = res.json()
+    assert len(r["added_products"]) == 19 and r["added_items"] == []
+    missing = {m["name"] for m in r["missing_items"]}
+    assert {"ICEBERG", "KAPLAMALI TAVUK", "DYNAMITE SOS", "TAHİN SOS"} <= missing
+    assert {w["item_name"] for w in r["unconverted"]} >= {"CHEDAR PEYNİRİ", "KOVA MAYONEZ"}
+    products = {p["name"]: p for p in api.get("/menu-products").json()}
+    youki = {ln["item_name"]: ln for ln in products["YOUKI"]["recipe"]}
+    assert D(str(youki["YOUKİ SOS"]["per_item_unit"])) == D("0.075")
+    assert D(str(youki["DANA KIYMA"]["per_item_unit"])) == D("0.15")
+    assert "HAMBURGER EKMEĞİ" not in {ln["item_name"] for ln in products["BALANCE"]["recipe"]}
+    assert D(
+        str(
+            next(ln for ln in products["ROYALE"]["recipe"] if ln["item_name"] == "DANA KIYMA")[
+                "quantity"
+            ]
+        )
+    ) == D("225")
+
+    # second run with the missing ingredients completes the recipes without duplicates
+    before = sum(len(p["recipe"]) for p in products.values())
+    r2 = api.post("/menu-products/load-defaults?add_missing_items=true").json()
+    assert r2["added_products"] == [] and r2["missing_items"] == []
+    assert len(r2["added_items"]) == 17
+    after = sum(len(p["recipe"]) for p in api.get("/menu-products").json())
+    assert after - before == r2["added_lines"] > 0
+    assert api.post("/menu-products/load-defaults").json()["added_lines"] == 0
+
+    # YOUKİ SOS: 100 Youki × 75 g + 40 Cheese Tao × 150 g = 13.5 kg
+    products = {p["name"]: p["id"] for p in api.get("/menu-products").json()}
+    sheet = api.put(
+        f"/branches/{branch}/monthly-counts/{P}",
+        {
+            "sales": [
+                {"product_id": products["YOUKI"], "quantity": "100"},
+                {"product_id": products["CHEESE TAO"], "quantity": "40"},
+            ]
+        },
+    ).json()
+    assert D(str(_line(sheet, "YOUKİ SOS")["recipe_used"])) == D("13.5")
+    assert D(str(_line(sheet, "HAMBURGER EKMEĞİ")["recipe_used"])) == D("140")
+    assert D(str(_line(sheet, "KAPLAMALI TAVUK")["recipe_used"])) == D("4.8")
 
 
 def test_menu_permissions_and_isolation(client, session: Session) -> None:
