@@ -115,7 +115,7 @@ async function bootstrapSession() {
   const sel = document.getElementById("branch-select");
   sel.replaceChildren(...state.branches.map((b) => el("option", { value: b.id, selected: b.id === state.branch }, b.name)));
   document.getElementById("whoami").textContent = `${state.me.email} · ${state.me.role}`;
-  for (const a of document.querySelectorAll("#nav a")) a.parentElement.hidden = !!a.dataset.perm && !can(a.dataset.perm);
+  for (const a of document.querySelectorAll("nav a")) a.parentElement.hidden = !!a.dataset.perm && !can(a.dataset.perm);
   document.getElementById("top").hidden = false;
   return true;
 }
@@ -137,7 +137,7 @@ function renderLogin() {
       message("");
       if (!(await bootstrapSession())) return;
       // Only leave the login page if the user has not already navigated elsewhere.
-      if (location.hash === "#/login" || location.hash === "") location.hash = "#/dashboard";
+      if (location.hash === "#/login" || location.hash === "") location.hash = "#/sayim";
       else route();
     },
   }, el("label", {}, "E-posta", email), el("label", {}, "Parola", password), button);
@@ -427,11 +427,11 @@ const routes = { "#/dashboard": renderDashboard, "#/orders": renderOrders, "#/st
   "#/account": renderAccount };
 
 async function route() {
-  const hash = location.hash || "#/dashboard";
+  const hash = location.hash || "#/sayim";
   if (!state.token || hash === "#/login") { renderLogin(); return; }
   if (!state.me && !(await bootstrapSession())) { logout(); return; }
-  const page = routes[hash] || renderDashboard;
-  for (const a of document.querySelectorAll("#nav a")) {
+  const page = routes[hash] || routes["#/sayim"];
+  for (const a of document.querySelectorAll("nav a")) {
     if (a.getAttribute("href") === hash) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   }

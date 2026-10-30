@@ -12,6 +12,7 @@ dependencies = [
     "pyjwt>=2.8",
     "argon2-cffi>=23.1",
     "uvicorn>=0.30",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

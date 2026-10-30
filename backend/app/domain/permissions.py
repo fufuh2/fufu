@@ -25,6 +25,7 @@ class Perm(StrEnum):
     SHIFT_SELF = "shift.self"
     TASK_COMPLETE = "task.complete"
     INTEGRATION_MANAGE = "integration.manage"
+    COUNT_CLOSE = "count.close"
 
 
 class Role(StrEnum):
@@ -61,6 +62,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
             Perm.SHIFT_MANAGE,
             Perm.SHIFT_SELF,
             Perm.TASK_COMPLETE,
+            Perm.COUNT_CLOSE,
         }
     ),
     Role.SHIFT_LEAD: frozenset(

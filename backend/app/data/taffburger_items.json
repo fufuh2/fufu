@@ -1,0 +1,495 @@
+{
+ "source": "Aylık Sayım Formu.xlsx — TAFF BURGER RESTORAN SAYIM LİSTESİ",
+ "items": [
+  {
+   "group": "Gıda Ürünleri",
+   "name": "DANA KIYMA",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "HAMBURGER EKMEĞİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "PATATES",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "CHEDAR PEYNİRİ",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "PARMESAN PEYNİRİ",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "FRİTA YAĞ",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "TRÜF YAĞI",
+   "unit": "LT"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "HALKA TURŞU",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "KÜP TURŞU",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "KÜHNE ALMAN TURŞU",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "DANA FÜME",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "CAJUN BAHARAT",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "ET BAHARATI",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "ÜZÜM SİRKESİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "KAYA TUZU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "BEYAZ SİRKE",
+   "unit": "LT"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "BAKLAVA YAĞI",
+   "unit": "KG"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "SACHET MAYONEZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "TOP DOWN MAYONEZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "SACHET KETÇAP",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "TOP DOWN KETÇAP",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "TOP DOWN HARDAL",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "BBO SOS",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "KOVA MAYONEZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "KOVA KETÇAP",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "ACI SOS",
+   "unit": "ADET"
+  },
+  {
+   "group": "Gıda Ürünleri",
+   "name": "MİNİ TUZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "POS RULOSU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "YAZICI RULOSU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "TEPSİ KAĞIDI",
+   "unit": "KG"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "KÜRDAN",
+   "unit": "PKT"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "İÇTEN ÇEKMELİ HAVLU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "KATLANMIŞ GARSON PEÇETE",
+   "unit": "PKT"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "PİPET",
+   "unit": "PKT"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "ELDİVEN",
+   "unit": "PKT"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "STREÇ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "KRAFT POŞET",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "KRAFT ÇANTA",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "SOS KABI KAPAKSIZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "SOS KABI KAPAKLI",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "TEKLİ BURGER KUTUSU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "COMBO BURGER KUTUSU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "ATIŞTIRMALIK KUTU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "SARMA KAĞIDI",
+   "unit": "ADET"
+  },
+  {
+   "group": "Ambalaj Ürünleri",
+   "name": "TATLI KUTUSU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "ÇAMAŞIR SUYU",
+   "unit": "KG"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "YÜZEY TEMİZLEYİCİSİ",
+   "unit": "KG"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "CAMSİL",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "JUMBO ÇÖP TORBASI",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "BULAŞIK DETERJANI",
+   "unit": "KG"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "ASPEROX",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "PASLANMAZ IZGARA TEMİZLEYİCİSİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "PASLANMAZ PARTALTICI MALZEMESİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "TUVALET KAĞIDI",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "WC KAĞIT HAVLU",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "WC SIVI SABUN",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "ALKÖLLÜ KOVA MENDİL",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "SÜNGER",
+   "unit": "ADET"
+  },
+  {
+   "group": "Temizlik Malzemeleri",
+   "name": "MİKROFİBER BEZ",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "ŞİŞE COLA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "ŞİŞE FANTA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "ŞİŞE SPRİTE",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "ŞİŞE ZERO",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "KUTU COLA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "KUTU FANTA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "KUTU SPRİTE",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "KUTU ZERO",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "FUSE TEA ŞEFTALİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "FUSE TEA LİMON",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "FUSE TEA MANGO",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "SODA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "SU",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "AYRAN",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "PERSONEL 1 LT COLA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "PERSONEL 1 LT FANTA",
+   "unit": "ADET"
+  },
+  {
+   "group": "İçecekler",
+   "name": "PERSONEL 1 LT FUSE TEA ŞEFTALİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "SOĞAN TURŞUSU",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "SOĞAN KITIRI",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "FAKE SOĞANI",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "YOUKİ SOS",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "TRÜFLÜ MAYONEZ",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "DİPLOMAT SOS",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "COY SOS",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "FAKE DONALD'S SOS",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "LİLLY SOS",
+   "unit": "KG"
+  },
+  {
+   "group": "Mutfak Sosları",
+   "name": "KEÇİ BÜŞÜ KREMASI",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "OSMANCIK PİRİNÇ",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "PİLAVLIK BULGUR",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "KÖFTELİK BULGUR",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "KURU FASULYE",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "NOHUT",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "ZEYTİNYAĞI",
+   "unit": "LT"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "AY ÇİÇEK YAĞI",
+   "unit": "LT"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "MAKARNA",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "TEREYAĞI",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "KIRMIZI MERCİMEK",
+   "unit": "KG"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "NAR EKŞİSİ",
+   "unit": "ADET"
+  },
+  {
+   "group": "Personel Yemek Malzemeleri",
+   "name": "LİMON SUYU",
+   "unit": "ADET"
+  }
+ ]
+}

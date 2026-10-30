@@ -118,3 +118,37 @@ class TestConfig:
             == "postgresql+psycopg://u:p@h/d?sslmode=require"
         )
         assert n("postgresql+psycopg://u@h/d") == "postgresql+psycopg://u@h/d"
+
+
+class TestMonthlyCount:
+    def test_expected_and_difference(self) -> None:
+        from app.domain.monthly import compute_line
+
+        # devir 10 + gelen 50 - kullanılan 45 = 15 beklenen; sayılan 12 -> 3 eksik
+        r = compute_line(D("10"), D("50"), D("45"), D("12"), D("400"))
+        assert (r.expected, r.difference, r.status) == (D("15"), D("-3"), "eksik")
+        assert (r.difference_value, r.counted_value) == (D("-1200.00"), D("4800.00"))
+        r = compute_line(D("0"), D("24"), D("20"), D("5"), None)
+        assert (r.difference, r.status, r.difference_value) == (D("1"), "fazla", None)
+        assert compute_line(D("1"), D("0"), D("1"), D("0"), None).status == "tamam"
+
+    def test_not_counted_is_unknown_not_zero(self) -> None:
+        from app.domain.monthly import compute_line
+
+        r = compute_line(D("5"), D("0"), D("0"), None, D("1"))
+        assert (r.difference, r.status, r.difference_value) == (None, "sayilmadi", None)
+
+    def test_decimals_kg(self) -> None:
+        from app.domain.monthly import compute_line
+
+        r = compute_line(D("2.350"), D("10.125"), D("11.200"), D("1.250"), D("399.90"))
+        assert r.expected == D("1.275") and r.difference == D("-0.025")
+        assert r.difference_value == D("-10.00")  # -0.025 * 399.90 = -9.9975 -> -10.00
+
+    def test_period_parsing(self) -> None:
+        from app.domain.monthly import parse_period
+
+        assert parse_period("2026-08") == (2026, 8)
+        for bad in ("2026-13", "26-08", "2026/08", "2026-8", "abcd-ef"):
+            with pytest.raises(ValueError):
+                parse_period(bad)

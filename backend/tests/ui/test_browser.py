@@ -3,6 +3,7 @@ Requires the `playwright` package and a Chromium build (OPSX_CHROMIUM_PATH or th
 `playwright install chromium` location)."""
 
 import os
+import re
 import socket
 import threading
 import time
@@ -20,6 +21,8 @@ if os.environ.get("OPSX_REQUIRE_BROWSER") == "1":
     import playwright.sync_api as sync_api  # fail loudly in CI instead of skipping
 else:
     sync_api = pytest.importorskip("playwright.sync_api")
+
+HOME = re.compile("Aylık Sayım")  # landing page after login
 
 
 def _free_port() -> int:
@@ -82,7 +85,7 @@ def _login(page, email: str, password: str = PASSWORD) -> None:  # type: ignore[
     page.get_by_label("Parola").fill(password)
     page.get_by_role("button", name="Giriş yap").click()
     if password == PASSWORD:
-        sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
+        sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
 
 
 def _owner_email(session: Session) -> str:
@@ -101,6 +104,7 @@ def test_login_errors_and_dashboard(page, client, session: Session) -> None:
     page.get_by_role("button", name="Giriş yap").click()
     sync_api.expect(page.locator("#msg")).to_contain_text("E-posta veya parola hatalı")
     _login(page, email)
+    page.get_by_role("link", name="Özet").click()
     sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
     sync_api.expect(page.locator("table")).to_contain_text("BEEF")
     # currency and number formatting in Turkish locale
@@ -197,8 +201,13 @@ def test_xss_payload_is_rendered_as_text(page, client, session: Session) -> None
     k = setup_kitchen(api)
     evil = '<img src=x onerror="window.__pwned=1">'
     api.post("/items", {"sku": "XSS", "name": evil, "base_unit": "g"})
+    api.post("/count-items", {"group_name": evil, "name": "X" + evil, "unit": "KG"})
     _login(page, _owner_email(session))
-    sync_api.expect(page.locator("table")).to_contain_text(evil)
+    # monthly count sheet (landing page): group and product name rendered as text
+    sync_api.expect(page.locator(".count-table")).to_contain_text("X" + evil)
+    sync_api.expect(page.locator(".count-table")).to_contain_text(evil)
+    page.get_by_role("link", name="Özet").click()
+    sync_api.expect(page.locator("table").first).to_contain_text(evil)
     assert page.evaluate("window.__pwned") is None
     assert page.locator("main img").count() == 0
     assert k
@@ -208,7 +217,7 @@ def test_expired_session_returns_to_login(page, client, session: Session) -> Non
     api = new_tenant(session, client)
     setup_kitchen(api)
     _login(page, _owner_email(session))
-    sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
+    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
     api.post("/auth/logout-all")  # revokes every token of this user, like an expiry
     page.get_by_role("link", name="Siparişler").click()
     sync_api.expect(page.get_by_role("heading", name="Giriş")).to_be_visible()
@@ -229,7 +238,7 @@ def test_mobile_layout_and_keyboard(browser, server, client, session: Session) -
     assert pg.evaluate("document.activeElement.name") == "password"
     pg.keyboard.type(PASSWORD)
     pg.keyboard.press("Enter")
-    sync_api.expect(pg.get_by_role("heading", name="Özet")).to_be_visible()
+    sync_api.expect(pg.get_by_role("heading", name=HOME)).to_be_visible()
     assert pg.evaluate("document.activeElement.id") == "main"  # focus moves to content
     overflow = pg.evaluate("document.documentElement.scrollWidth - window.innerWidth")
     assert overflow <= 0, f"page scrolls horizontally by {overflow}px"
@@ -283,4 +292,64 @@ def test_password_change_through_ui(page, client, session: Session) -> None:
     sync_api.expect(page.locator("#msg")).to_contain_text("Parolanız değişti")
     sync_api.expect(page.get_by_role("heading", name="Giriş")).to_be_visible()
     _login(page, email, "a-brand-new-password")
-    sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
+    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
+
+
+def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> None:
+    import openpyxl
+
+    api = new_tenant(session, client)
+    api.post("/branches", {"name": "Taff Burger Merkez"})
+    _login(page, _owner_email(session))
+    page.get_by_role("link", name="Ürün Listesi").click()
+    page.get_by_role("button", name="Taff Burger sayım formundaki 98 ürünü yükle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("98 ürün eklendi")
+    page.get_by_label("DANA KIYMA birim fiyat").fill("400")
+    page.get_by_label("DANA KIYMA birim fiyat").press("Tab")
+    sync_api.expect(page.locator("#msg")).to_contain_text("DANA KIYMA güncellendi")
+
+    page.get_by_role("link", name="Aylık Sayım").click()
+    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
+    sync_api.expect(page.get_by_role("cell", name="DANA KIYMA", exact=True)).to_be_visible()
+    for field, value in (("opening", "10"), ("incoming", "50"), ("used", "45"), ("counted", "12")):
+        page.get_by_label(f"DANA KIYMA {field}").fill(value)
+    row = page.locator("tr", has=page.get_by_role("cell", name="DANA KIYMA", exact=True))
+    # computed live, before saving: 10 + 50 - 45 = 15 expected, 12 counted -> -3 eksik
+    sync_api.expect(row).to_contain_text("15")
+    sync_api.expect(row).to_contain_text("-3")
+    sync_api.expect(row).to_contain_text("EKSİK")
+    sync_api.expect(row).to_contain_text("1.200,00")
+    page.get_by_label("PATATES counted").fill("12,5")  # Turkish decimal comma
+    page.get_by_label("Sayımı yapan").fill("Ali Veli")
+    page.get_by_role("button", name="Kaydet").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Sayım kaydedildi")
+
+    page.reload()
+    sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_have_value("12")
+    sync_api.expect(page.get_by_label("PATATES counted")).to_have_value("12,5")
+    sync_api.expect(page.get_by_label("Sayımı yapan")).to_have_value("Ali Veli")
+    db = session.execute(
+        text(
+            "SELECT l.counted FROM monthly_count_lines l JOIN count_items i ON i.id = l.item_id "
+            "WHERE i.name = 'PATATES'"
+        )
+    ).scalar()
+    assert str(db) == "12.500"
+
+    page.get_by_label("Filtre").select_option("eksik")
+    sync_api.expect(page.locator(".count-table tbody tr:not(.group):visible")).to_have_count(1)
+    page.get_by_label("Filtre").select_option("all")
+
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="Excel indir").click()
+    path = tmp_path / "sayim.xlsx"
+    dl.value.save_as(path)
+    ws = openpyxl.load_workbook(path).active
+    names = [ws.cell(r, 2).value for r in range(1, ws.max_row + 1)]
+    assert "DANA KIYMA" in names and "TOP DOWN KETÇAP" in names
+
+    page.on("dialog", lambda d: d.accept())
+    page.get_by_role("button", name="Ayı kapat").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("ürün sayılmadı")
+    # the only console error allowed is the browser's log of that deliberate 422
+    assert [e for e in page.errors if "422" not in e] == []

@@ -20,6 +20,8 @@ from app.services import (
     catalog,
     integrations,
     inventory,
+    monthly,
+    monthly_export,
     orders,
     purchasing,
     quality,
@@ -846,3 +848,97 @@ async def pos_webhook(
     if duplicate:
         response.headers["Idempotent-Replayed"] = "true"
     return event
+
+
+# --- monthly count --------------------------------------------------------------------------
+
+
+@router.get("/count-items", response_model=list[s.CountItemOut])
+def list_count_items(actor: ActorDep, session: SessionDep, include_inactive: bool = False) -> Any:
+    return monthly.list_items(session, actor, include_inactive)
+
+
+@router.post("/count-items", response_model=s.CountItemOut, status_code=201)
+def create_count_item(body: s.CountItemIn, actor: ActorDep, session: SessionDep) -> Any:
+    return monthly.create_item(
+        session,
+        actor,
+        group_name=body.group_name,
+        name=body.name,
+        unit=body.unit,
+        unit_price=body.unit_price,
+    )
+
+
+@router.patch("/count-items/{item_id}", response_model=s.CountItemOut)
+def update_count_item(
+    item_id: uuid.UUID, body: s.CountItemPatch, actor: ActorDep, session: SessionDep
+) -> Any:
+    return monthly.update_item(session, actor, item_id, body.model_dump(exclude_unset=True))
+
+
+@router.post("/count-items/load-defaults")
+def load_default_count_items(actor: ActorDep, session: SessionDep) -> Any:
+    return monthly.load_default_items(session, actor)
+
+
+@router.get("/branches/{branch_id}/monthly-counts", response_model=list[s.MonthSummaryOut])
+def list_monthly_counts(branch_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> Any:
+    return monthly.list_months(session, actor, branch_id)
+
+
+@router.get("/branches/{branch_id}/monthly-counts/{period}")
+def get_monthly_count(
+    branch_id: uuid.UUID, period: str, actor: ActorDep, session: SessionDep
+) -> Any:
+    count = monthly.open_month(session, actor, branch_id, period)
+    return monthly.sheet(session, actor, count)
+
+
+@router.put("/branches/{branch_id}/monthly-counts/{period}")
+def save_monthly_count(
+    branch_id: uuid.UUID,
+    period: str,
+    body: s.MonthlySaveIn,
+    actor: ActorDep,
+    session: SessionDep,
+) -> Any:
+    monthly.open_month(session, actor, branch_id, period)
+    count = monthly.save_lines(
+        session,
+        actor,
+        branch_id,
+        period,
+        [monthly.LineUpdate(**x.model_dump()) for x in body.lines],
+        body.model_dump(exclude_unset=True, exclude={"lines"}),
+    )
+    return monthly.sheet(session, actor, count)
+
+
+@router.post("/branches/{branch_id}/monthly-counts/{period}/close")
+def close_monthly_count(
+    branch_id: uuid.UUID, period: str, actor: ActorDep, session: SessionDep
+) -> Any:
+    return monthly.sheet(session, actor, monthly.close_month(session, actor, branch_id, period))
+
+
+@router.post("/branches/{branch_id}/monthly-counts/{period}/reopen")
+def reopen_monthly_count(
+    branch_id: uuid.UUID, period: str, body: s.CancelIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    count = monthly.reopen_month(session, actor, branch_id, period, body.reason)
+    return monthly.sheet(session, actor, count)
+
+
+@router.get("/branches/{branch_id}/monthly-counts/{period}/export.xlsx")
+def export_monthly_count(
+    branch_id: uuid.UUID, period: str, actor: ActorDep, session: SessionDep
+) -> Response:
+    branch = get_branch(session, actor, branch_id)
+    count = monthly.open_month(session, actor, branch_id, period)
+    data = monthly_export.build_workbook(monthly.sheet(session, actor, count), branch.name)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="sayim-{period}.xlsx"'},
+    )

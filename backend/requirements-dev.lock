@@ -28,6 +28,8 @@ dnspython==2.9.0
     # via email-validator
 email-validator==2.3.0
     # via pydantic
+et-xmlfile==2.0.0
+    # via openpyxl
 fastapi==0.143.3
     # via operationos-x (pyproject.toml)
 greenlet==3.5.6
@@ -59,6 +61,8 @@ mypy==2.4.0
     # via operationos-x (pyproject.toml)
 mypy-extensions==1.1.0
     # via mypy
+openpyxl==3.1.5
+    # via operationos-x (pyproject.toml)
 opentelemetry-api==1.45.1
     # via fastapi
 packaging==26.3

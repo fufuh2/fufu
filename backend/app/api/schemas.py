@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -634,3 +634,65 @@ class PosEventOut(BaseModel):
     attempts: int
     received_at: datetime
     processed_at: datetime | None
+
+
+CountQty = Annotated[Decimal, Field(ge=0, le=Decimal("99999999999.999"), decimal_places=3)]
+CountUnit = Annotated[str, Field(pattern="^(KG|ADET|LT|PKT|GR|ML|KOLİ)$")]
+Period = Annotated[str, Field(pattern=r"^\d{4}-\d{2}$")]
+
+
+class CountItemIn(Strict):
+    group_name: Annotated[str, Field(min_length=1, max_length=100)]
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    unit: CountUnit
+    unit_price: (
+        Annotated[Decimal, Field(ge=0, le=Decimal("100000000"), decimal_places=2)] | None
+    ) = None
+
+
+class CountItemPatch(Strict):
+    group_name: Annotated[str, Field(min_length=1, max_length=100)] | None = None
+    name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    unit: CountUnit | None = None
+    unit_price: (
+        Annotated[Decimal, Field(ge=0, le=Decimal("100000000"), decimal_places=2)] | None
+    ) = None
+    sort_order: Annotated[int, Field(ge=0, le=1000000)] | None = None
+    is_active: bool | None = None
+
+
+class CountItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    group_name: str
+    name: str
+    unit: str
+    unit_price: Decimal | None
+    sort_order: int
+    is_active: bool
+
+
+class CountLineIn(Strict):
+    item_id: uuid.UUID
+    opening: CountQty | None = None
+    incoming: CountQty | None = None
+    used: CountQty | None = None
+    counted: CountQty | None = None
+    clear_counted: bool = False
+    note: Annotated[str, Field(max_length=300)] | None = None
+
+
+class MonthlySaveIn(Strict):
+    counted_by_name: Annotated[str, Field(max_length=200)] | None = None
+    count_date: date | None = None
+    note: Annotated[str, Field(max_length=1000)] | None = None
+    lines: Annotated[list[CountLineIn], Field(max_length=2000)] = []
+
+
+class MonthSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    period: date
+    status: str
+    counted_by_name: str | None
+    closed_at: datetime | None

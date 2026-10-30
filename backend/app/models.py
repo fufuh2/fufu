@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -7,6 +7,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -754,3 +755,78 @@ class PosEvent(Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     received_at: Mapped[datetime] = _now()
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- monthly inventory count ---------------------------------------------------------------
+
+COUNT_UNITS = ("KG", "ADET", "LT", "PKT", "GR", "ML", "KOLİ")
+
+
+class CountItem(Base):
+    """A product on the monthly count sheet (grouped like the restaurant's paper form)."""
+
+    __tablename__ = "count_items"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name"),
+        CheckConstraint("unit IN ('" + "','".join(COUNT_UNITS) + "')", name="ck_count_item_unit"),
+        CheckConstraint("unit_price IS NULL OR unit_price >= 0", name="ck_count_item_price"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    group_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    unit: Mapped[str] = mapped_column(String(8), nullable=False)
+    unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class MonthlyCount(Base):
+    __tablename__ = "monthly_counts"
+    __table_args__ = (
+        UniqueConstraint("branch_id", "period"),
+        CheckConstraint("status IN ('draft','closed')", name="ck_monthly_count_status"),
+        CheckConstraint("extract(day from period) = 1", name="ck_monthly_count_period_first_day"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    period: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(8), nullable=False)
+    counted_by_name: Mapped[str | None] = mapped_column(String(200))
+    count_date: Mapped[date | None] = mapped_column(Date)
+    note: Mapped[str | None] = mapped_column(String(1000))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()
+
+
+class MonthlyCountLine(Base):
+    __tablename__ = "monthly_count_lines"
+    __table_args__ = (
+        UniqueConstraint("count_id", "item_id"),
+        CheckConstraint("opening >= 0", name="ck_mcl_opening"),
+        CheckConstraint("incoming >= 0", name="ck_mcl_incoming"),
+        CheckConstraint("used >= 0", name="ck_mcl_used"),
+        CheckConstraint("counted IS NULL OR counted >= 0", name="ck_mcl_counted"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    count_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("monthly_counts.id"), nullable=False, index=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("count_items.id"), nullable=False)
+    opening: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
+    # True when the opening came from the previous closed month and may not be edited.
+    opening_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    incoming: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
+    used: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=Decimal("0"))
+    counted: Mapped[Decimal | None] = mapped_column(Numeric(14, 3))
+    # Price snapshot at close, so later price edits do not rewrite a closed month's value.
+    unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
+    note: Mapped[str | None] = mapped_column(String(300))

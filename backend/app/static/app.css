@@ -53,3 +53,37 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .who { margin-left: 0; width: 100%; }
   main { padding: 10px; }
 }
+.top nav { display: flex; flex-direction: column; gap: 2px; }
+.top nav ul.advanced { font-size: 13px; }
+.top nav ul.advanced .label { color: var(--muted); }
+.sheet-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.sheet-head h1 { margin: 4px 0; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.toolbar .grow, form.row .grow { flex: 1 1 200px; }
+.toolbar .grow input, form.row .grow input { width: 100%; }
+main:has(.count-table) { max-width: 1400px; }
+.table-wrap.count { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+.count-table thead th { position: sticky; top: 0; background: #1f4e79; color: #fff; z-index: 2; }
+.count-table tr.group th { background: #ddebf7; color: var(--fg); position: sticky; top: 36px; z-index: 1; text-transform: uppercase; letter-spacing: .03em; }
+.count-table td.name { white-space: normal; min-width: 180px; }
+.count-table input.qty { width: 92px; text-align: right; min-height: 32px; padding: 4px 6px; }
+.count-table input.qty:disabled { background: #f1f1ee; color: var(--muted); border-color: transparent; }
+input.invalid { border-color: var(--bad); background: #fdecec; }
+td.strong { font-weight: 700; }
+td.eksik { color: var(--bad); background: #fdecec; }
+td.fazla { color: var(--ok); background: #eaf6ee; }
+.badge.st-eksik { color: var(--bad); }
+.badge.st-fazla { color: var(--ok); }
+.badge.st-tamam { color: var(--muted); }
+.badge.st-sayilmadi { color: var(--warn); }
+.kpi.eksik .v { color: var(--bad); }
+.kpi.fazla .v { color: var(--ok); }
+.lock { font-size: 12px; }
+@media print {
+  .top, .msg, .no-print, button { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .table-wrap.count { max-height: none; overflow: visible; border: 0; }
+  .count-table thead th, .count-table tr.group th { position: static; }
+  .count-table input.qty { border: 0; background: none; width: 70px; }
+  body { background: #fff; font-size: 11px; }
+}
