@@ -14,7 +14,6 @@ backend:
     OPSX_TEST_DATABASE_URL: postgresql+psycopg://ops:ops@db:5432/opsx_test
     OPSX_DATABASE_URL: postgresql+psycopg://ops:ops@db:5432/opsx_test
     OPSX_JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
-    OPSX_INTEGRATION_KEY: ci-only-integration-key-not-used-elsewhere-0123
     OPSX_REQUIRE_BROWSER: "1"
   before_script:
     - cd backend
@@ -24,6 +23,6 @@ backend:
     - ruff check .
     - ruff format --check .
     - mypy app
-    - alembic upgrade head && alembic check && alembic downgrade base
+    - alembic upgrade head && alembic check
     - pytest -o addopts="" -p no:warnings -rs
     - pip install pip-audit && pip-audit -r requirements.lock

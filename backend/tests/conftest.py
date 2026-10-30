@@ -7,7 +7,6 @@ fixture refuses to run against a name that does not end in '_test'.
 import os
 import uuid
 from collections.abc import Iterator
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +18,6 @@ TEST_DB = os.environ.get(
 os.environ["OPSX_DATABASE_URL"] = TEST_DB
 os.environ.setdefault("OPSX_JWT_SECRET", "test-secret-" + "x" * 40)
 os.environ.setdefault("OPSX_ENV", "test")
-os.environ.setdefault("OPSX_INTEGRATION_KEY", "test-integration-key-" + "y" * 40)
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -84,6 +82,12 @@ class Api:
             "/api/v1" + path, json=json, headers={**self.headers, **(headers or {})}
         )
 
+    def put(self, path: str, json: Any = None) -> Any:
+        return self.client.put("/api/v1" + path, json=json, headers=self.headers)
+
+    def patch(self, path: str, json: Any = None) -> Any:
+        return self.client.patch("/api/v1" + path, json=json, headers=self.headers)
+
 
 def new_tenant(session: Session, client: TestClient, name: str = "Acme") -> Api:
     email = f"owner-{uuid.uuid4().hex[:8]}@example.com"
@@ -91,44 +95,9 @@ def new_tenant(session: Session, client: TestClient, name: str = "Acme") -> Api:
     return Api(client, email)
 
 
-def setup_kitchen(api: Api) -> dict[str, str]:
-    """Branch + 2 items + burger product with a recipe + an initial receipt."""
-    branch = api.post("/branches", {"name": "Kadikoy"}).json()["id"]
-    beef = api.post(
-        "/items", {"sku": "BEEF", "name": "Ground beef", "base_unit": "g", "min_stock": "2000"}
-    ).json()["id"]
-    bun = api.post(
-        "/items",
-        {"sku": "BUN", "name": "Burger bun", "base_unit": "pcs", "conversions": {"pack": "6"}},
-    ).json()["id"]
-    burger = api.post("/products", {"sku": "BURGER", "name": "Burger", "price": "250.00"}).json()[
-        "id"
-    ]
-    res = api.post(
-        f"/products/{burger}/recipes",
-        {
-            "lines": [
-                {"item_id": beef, "quantity": "150", "unit": "g"},
-                {"item_id": bun, "quantity": "1", "unit": "pcs"},
-            ]
-        },
-    )
-    assert res.status_code == 201, res.text
-    res = api.post(
-        f"/branches/{branch}/receipts",
-        {
-            "supplier": "Test supplier",
-            "lines": [
-                # 10 kg at 400/kg -> 0.4 per g ; 5 packs of 6 at 30/pack -> 5 per bun
-                {"item_id": beef, "quantity": "10", "unit": "kg", "unit_cost": "400"},
-                {"item_id": bun, "quantity": "5", "unit": "pack", "unit_cost": "30"},
-            ],
-        },
-    )
-    assert res.status_code == 201, res.text
-    return {"branch": branch, "beef": beef, "bun": bun, "burger": burger}
-
-
-def stock_of(api: Api, branch: str, item: str) -> Decimal:
-    rows = api.get(f"/branches/{branch}/stock").json()
-    return Decimal(next(r for r in rows if r["item_id"] == item)["quantity"])
+def setup_branch(api: Api, name: str = "Kadikoy") -> str:
+    """A branch with the 98 products of the Taff Burger count form."""
+    branch = api.post("/branches", {"name": name}).json()["id"]
+    res = api.post("/count-items/load-defaults")
+    assert res.status_code == 200, res.text
+    return branch

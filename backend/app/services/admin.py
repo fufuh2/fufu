@@ -152,19 +152,27 @@ def create_user(
     return user
 
 
-def list_audit(session: Session, actor: Actor, limit: int) -> list[AuditEvent]:
+def list_audit(
+    session: Session, actor: Actor, limit: int, offset: int = 0, action: str | None = None
+) -> list[tuple[AuditEvent, str | None]]:
+    """Newest first, with the acting user's e-mail. `action` filters by prefix, e.g.
+    'monthly_count.'."""
     actor.require(Perm.AUDIT_READ)
     stmt = (
-        select(AuditEvent)
+        select(AuditEvent, User.email)
+        .outerjoin(User, User.id == AuditEvent.user_id)
         .where(AuditEvent.tenant_id == actor.tenant_id)
         .order_by(AuditEvent.id.desc())
         .limit(min(max(limit, 1), 500))
+        .offset(max(offset, 0))
     )
+    if action:
+        stmt = stmt.where(AuditEvent.action.startswith(action, autoescape=True))
     if actor.branch_ids is not None:
         stmt = stmt.where(
             AuditEvent.data["branch_id"].astext.in_([str(b) for b in actor.branch_ids])
         )
-    return list(session.scalars(stmt))
+    return [(e, email) for e, email in session.execute(stmt)]
 
 
 def authenticate(session: Session, email: str, password: str) -> User:
@@ -342,3 +350,43 @@ def update_branch(
     )
     session.commit()
     return branch
+
+
+def list_users(session: Session, actor: Actor) -> list[dict[str, object]]:
+    actor.require(Perm.USER_MANAGE)
+    users = list(
+        session.scalars(select(User).where(User.tenant_id == actor.tenant_id).order_by(User.email))
+    )
+    access: dict[uuid.UUID, list[str]] = {}
+    for uid, bid in session.execute(
+        select(UserBranchAccess.user_id, UserBranchAccess.branch_id).where(
+            UserBranchAccess.user_id.in_([u.id for u in users])
+        )
+    ):
+        access.setdefault(uid, []).append(str(bid))
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "branch_ids": sorted(access.get(u.id, [])),
+            "created_at": u.created_at,
+        }
+        for u in users
+    ]
+
+
+def reset_password(session: Session, actor: Actor, user_id: uuid.UUID, new: str) -> None:
+    """An owner sets a new password for someone who forgot theirs; their sessions end."""
+    actor.require(Perm.USER_MANAGE)
+    user = _get_user(session, actor, user_id)
+    if user.id == actor.user_id:
+        raise Invalid("kendi parolanızı Hesabım sayfasından değiştirin")
+    if Role(user.role) == Role.OWNER and actor.role != Role.OWNER:
+        raise Forbidden("only an owner can reset an owner's password")
+    _check_password(new)
+    user.password_hash = hash_password(new)
+    user.token_version += 1
+    audit.record(session, actor, "user.password_reset", "user", user.id, {})
+    session.commit()

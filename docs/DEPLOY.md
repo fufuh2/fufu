@@ -6,7 +6,7 @@
 | GitLab | `gitlab.com/taffburger9/fufu` (private), `main` korumalı, merge yalnızca başarılı pipeline ile. **CI pipeline job çalıştırmadan düşüyor**: hesapta shared runner doğrulaması gerekiyor olabilir (GitLab → Settings → CI/CD veya hesap doğrulama). Aynı kontroller GitHub Actions'ta yeşil. |
 | Render DB | `opsx-db`, PostgreSQL 16, Frankfurt, **free: 2026-11-16'da sona eriyor** (Render API'nin döndürdüğü tarih). |
 | Render web | `opsx-api` → https://opsx-api.onrender.com, free, Frankfurt, sağlık kontrolü `/readyz`, otomatik deploy açık. **Kaynak GitHub** (`fufuh2/fufu`, dal `ccr-5ace6090-44fj25`): Render hesabı GitLab'a bağlı değil, private GitLab reposunu okuyamıyor. |
-| Sırlar | `OPSX_JWT_SECRET` ve `OPSX_INTEGRATION_KEY` Render'da üretildi; git'te yok. |
+| Sırlar | `OPSX_JWT_SECRET` Render'da üretildi; git'te yok. (`OPSX_INTEGRATION_KEY` artık kullanılmıyor; Render'dan silinebilir.) |
 | İlk sahip | Oluşturuldu (işletme: Taffburger, rol: owner). Bootstrap değişkenleri Render'dan silindi ve yeniden deploy edildi. **İlk parolayı Hesabım → Parola değiştir ile hemen değiştir.** |
 
 ## Kalan işler
@@ -21,7 +21,7 @@ Repo deploy için hazır:
 - `render.yaml`: Render blueprint (PostgreSQL 16 + web servisi, Frankfurt, free plan)
 - `.gitlab-ci.yml`: GitHub CI ile aynı kontroller
 - Uygulama Render'ın `postgres://` adresini kendisi çevirir; production'da HSTS gönderir, `/docs` kapalıdır.
-- Gizli değerler (`OPSX_JWT_SECRET`, `OPSX_INTEGRATION_KEY`) Render tarafından üretilir, git'e girmez.
+- Gizli değer (`OPSX_JWT_SECRET`) Render tarafından üretilir, git'e girmez.
 
 ## 1. GitLab'a gönder (private)
 ```bash
@@ -67,5 +67,4 @@ python scripts/audit_e2e.py ...                    # YALNIZCA ayrı bir test ver
 
 ## Güvenlik
 - Sohbete yazılan GitLab ve Render token'larını **iptal edip yenile**.
-- Render'da `OPSX_INTEGRATION_KEY`'i yalnızca POS kullanılacaksa paylaş. Değiştirmek tüm POS imzalarını geçersiz kılar.
 - IP bazlı istek sınırı yok (FND-002 kalan riski). Gerekirse Render önüne Cloudflare gibi bir katman koy.

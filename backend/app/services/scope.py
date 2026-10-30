@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import NotFound
-from app.models import Branch, Item, Product
+from app.models import Branch
 from app.security import Actor
 
 
@@ -25,21 +25,3 @@ def get_active_branch(session: Session, actor: Actor, branch_id: uuid.UUID) -> B
     if not branch.is_active:
         raise NotFound("branch is not active")
     return branch
-
-
-def get_item(session: Session, actor: Actor, item_id: uuid.UUID, *, active: bool = True) -> Item:
-    item = session.scalar(select(Item).where(Item.id == item_id, Item.tenant_id == actor.tenant_id))
-    if item is None or (active and not item.is_active):
-        raise NotFound(f"item {item_id} not found or inactive")
-    return item
-
-
-def get_product(
-    session: Session, actor: Actor, product_id: uuid.UUID, *, active: bool = True
-) -> Product:
-    product = session.scalar(
-        select(Product).where(Product.id == product_id, Product.tenant_id == actor.tenant_id)
-    )
-    if product is None or (active and not product.is_active):
-        raise NotFound(f"product {product_id} not found or inactive")
-    return product

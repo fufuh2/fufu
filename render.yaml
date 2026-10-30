@@ -30,5 +30,3 @@ services:
           property: connectionString
       - key: OPSX_JWT_SECRET
         generateValue: true
-      - key: OPSX_INTEGRATION_KEY
-        generateValue: true

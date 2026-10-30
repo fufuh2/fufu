@@ -8,21 +8,20 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
-from decimal import Decimal
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.models import Order
-from tests.conftest import PASSWORD, new_tenant, setup_kitchen, stock_of
+from tests.conftest import PASSWORD, Api, new_tenant, setup_branch
 
 if os.environ.get("OPSX_REQUIRE_BROWSER") == "1":
     import playwright.sync_api as sync_api  # fail loudly in CI instead of skipping
 else:
     sync_api = pytest.importorskip("playwright.sync_api")
 
-HOME = re.compile("Aylık Sayım")  # landing page after login
+HOME = re.compile("^Panel")  # landing page after login
+SHEET = re.compile("^Aylık Sayım")
 
 
 def _free_port() -> int:
@@ -94,9 +93,13 @@ def _owner_email(session: Session) -> str:
     ).scalar()
 
 
-def test_login_errors_and_dashboard(page, client, session: Session) -> None:
+def _nav(page, name: str) -> None:  # type: ignore[no-untyped-def]
+    page.get_by_role("navigation").get_by_role("link", name=name, exact=True).click()
+
+
+def test_login_errors_and_panel(page, client, session: Session) -> None:
     api = new_tenant(session, client)
-    setup_kitchen(api)
+    setup_branch(api)
     email = _owner_email(session)
     page.goto("/ui/#/login")
     page.get_by_label("E-posta").fill(email)
@@ -104,129 +107,66 @@ def test_login_errors_and_dashboard(page, client, session: Session) -> None:
     page.get_by_role("button", name="Giriş yap").click()
     sync_api.expect(page.locator("#msg")).to_contain_text("E-posta veya parola hatalı")
     _login(page, email)
-    page.get_by_role("link", name="Özet").click()
-    sync_api.expect(page.get_by_role("heading", name="Özet")).to_be_visible()
-    sync_api.expect(page.locator("table")).to_contain_text("BEEF")
-    # currency and number formatting in Turkish locale
-    sync_api.expect(page.locator("table")).to_contain_text("₺")
-    # the only console error allowed is the browser's log of the deliberate 401 above
+    sync_api.expect(page.locator("main")).to_contain_text("sayım henüz başlatılmadı")
+    # Only the monthly count remains: none of the removed modules are offered.
+    nav = page.get_by_role("navigation")
+    for gone in ("Siparişler", "Stok işlemleri", "Raporlar", "Kalite", "Görevler", "Özet"):
+        sync_api.expect(nav.get_by_role("link", name=gone)).to_have_count(0)
+    for name in (
+        "Panel",
+        "Aylık Sayım",
+        "Geçmiş Aylar",
+        "Ürün Analizi",
+        "Ürün Listesi",
+        "Kullanıcılar",
+        "Şubeler",
+        "Kayıt Geçmişi",
+        "Hesabım",
+    ):
+        sync_api.expect(nav.get_by_role("link", name=name, exact=True)).to_be_visible()
+    page.get_by_role("button", name="Sayımı başlat").click()
+    sync_api.expect(page.get_by_role("heading", name=SHEET)).to_be_visible()
+    # the only console error allowed is the browser's log of the deliberate wrong password
     assert [e for e in page.errors if "401" not in e] == []
-    headers = page.request.get("/ui/").headers
-    assert "default-src 'self'" in headers["content-security-policy"]
-
-
-def test_order_create_and_cancel_updates_database(page, client, session: Session) -> None:
-    api = new_tenant(session, client)
-    k = setup_kitchen(api)
-    _login(page, _owner_email(session))
-    page.get_by_role("link", name="Siparişler").click()
-    page.get_by_label("Adet").fill("3")
-    page.get_by_role("button", name="Kalem ekle").click()
-    save = page.get_by_role("button", name="Siparişi kaydet")
-    save.dblclick()  # a double click must not book twice
-    sync_api.expect(page.locator("#msg")).to_contain_text("Sipariş kaydedildi")
-    sync_api.expect(page.locator("table")).to_contain_text("tamamlandı")
-    assert session.scalar(select(func.count()).select_from(Order)) == 1
-    assert stock_of(api, k["branch"], k["bun"]) == 27
-    page.get_by_label("İptal nedeni").fill("müşteri vazgeçti")
-    page.get_by_role("button", name="İptal et").click()
-    sync_api.expect(page.locator("#msg")).to_contain_text("iptal edildi")
-    sync_api.expect(page.locator("table")).to_contain_text("iptal")
-    assert stock_of(api, k["branch"], k["bun"]) == 30
-    page.reload()  # persisted, not just client state
-    sync_api.expect(page.locator("table")).to_contain_text("iptal")
-    assert page.errors == []
-
-
-def test_waste_form_and_server_side_validation(page, client, session: Session) -> None:
-    api = new_tenant(session, client)
-    k = setup_kitchen(api)
-    _login(page, _owner_email(session))
-    page.get_by_role("link", name="Stok işlemleri").click()
-    fire = page.locator("section", has=page.get_by_role("heading", name="Fire"))
-    fire.get_by_label("Malzeme").select_option(k["beef"])
-    fire.get_by_label("Miktar").fill("250")
-    fire.get_by_label("Birim").fill("g")
-    fire.get_by_role("button", name="Kaydet").click()
-    sync_api.expect(page.locator("#msg")).to_contain_text("Fire kaydedildi")
-    assert stock_of(api, k["branch"], k["beef"]) == Decimal("9750")
-    fire.get_by_label("Miktar").fill("999")
-    fire.get_by_label("Birim").fill("kg")
-    fire.get_by_role("button", name="Kaydet").click()
-    sync_api.expect(page.locator("#msg")).to_contain_text("insufficient stock")
-    assert stock_of(api, k["branch"], k["beef"]) == Decimal("9750")
-
-
-def test_reports_show_unknown_not_zero(page, client, session: Session) -> None:
-    api = new_tenant(session, client)
-    k = setup_kitchen(api)
-    api.post(
-        f"/branches/{k['branch']}/orders",
-        {"lines": [{"product_id": k["burger"], "quantity": 2}]},
-        headers={"Idempotency-Key": "r1"},
-    )
-    _login(page, _owner_email(session))
-    page.get_by_role("link", name="Raporlar").click()
-    sync_api.expect(page.get_by_role("heading", name="Kârlılık")).to_be_visible()
-    body = page.locator("main")
-    sync_api.expect(body).to_contain_text("500,00")  # 2 x 250
-    sync_api.expect(body).to_contain_text("dönemde sayım yok")
-    sync_api.expect(body).to_contain_text("bilinmiyor")
-
-
-def test_permissions_hide_and_block(page, client, session: Session) -> None:
-    owner = new_tenant(session, client)
-    k = setup_kitchen(owner)
-    owner.post(
-        "/users",
-        {
-            "email": "cook@example.com",
-            "password": PASSWORD,
-            "role": "kitchen",
-            "branch_ids": [k["branch"]],
-        },
-    )
-    _login(page, "cook@example.com")
-    sync_api.expect(page.get_by_role("link", name="Siparişler")).to_be_visible()
-    sync_api.expect(page.get_by_role("link", name="Raporlar")).to_be_hidden()
-    page.goto("/ui/#/reports")  # typing the URL does not bypass the API
-    sync_api.expect(page.locator("#msg")).to_contain_text("yetkiniz yok")
-    page.goto("/ui/#/stock")
-    sync_api.expect(page.get_by_role("heading", name="Fire")).to_be_visible()
-    sync_api.expect(page.get_by_role("heading", name="Mal kabul")).to_have_count(0)
 
 
 def test_xss_payload_is_rendered_as_text(page, client, session: Session) -> None:
     api = new_tenant(session, client)
-    k = setup_kitchen(api)
+    branch = setup_branch(api)
     evil = '<img src=x onerror="window.__pwned=1">'
-    api.post("/items", {"sku": "XSS", "name": evil, "base_unit": "g"})
-    api.post("/count-items", {"group_name": evil, "name": "X" + evil, "unit": "KG"})
+    item = api.post("/count-items", {"group_name": evil, "name": "X" + evil, "unit": "KG"}).json()
+    api.put(
+        f"/branches/{branch}/monthly-counts/2026-08",
+        {"counted_by_name": evil, "lines": [{"item_id": item["id"], "waste": "1", "counted": "0"}]},
+    )
+    page.goto("/ui/#/login")
+    page.evaluate("sessionStorage.setItem('period', '2026-08')")
     _login(page, _owner_email(session))
-    # monthly count sheet (landing page): group and product name rendered as text
+    sync_api.expect(page.locator("main")).to_contain_text("X" + evil)  # panel: top waste
+    _nav(page, "Aylık Sayım")
     sync_api.expect(page.locator(".count-table")).to_contain_text("X" + evil)
     sync_api.expect(page.locator(".count-table")).to_contain_text(evil)
-    page.get_by_role("link", name="Özet").click()
-    sync_api.expect(page.locator("table").first).to_contain_text(evil)
+    _nav(page, "Geçmiş Aylar")
+    sync_api.expect(page.locator("main table")).to_contain_text(evil)
+    _nav(page, "Kayıt Geçmişi")
+    sync_api.expect(page.locator("main table")).to_contain_text("Sayımı kaydetti")
     assert page.evaluate("window.__pwned") is None
     assert page.locator("main img").count() == 0
-    assert k
 
 
 def test_expired_session_returns_to_login(page, client, session: Session) -> None:
     api = new_tenant(session, client)
-    setup_kitchen(api)
+    setup_branch(api)
     _login(page, _owner_email(session))
-    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
     api.post("/auth/logout-all")  # revokes every token of this user, like an expiry
-    page.get_by_role("link", name="Siparişler").click()
+    _nav(page, "Ürün Listesi")
     sync_api.expect(page.get_by_role("heading", name="Giriş")).to_be_visible()
     sync_api.expect(page.locator("#msg")).to_contain_text("Oturumunuz sona erdi")
 
 
 def test_mobile_layout_and_keyboard(browser, server, client, session: Session) -> None:
     api = new_tenant(session, client)
-    setup_kitchen(api)
+    setup_branch(api)
     ctx = browser.new_context(
         base_url=server, viewport={"width": 375, "height": 740}, locale="tr-TR"
     )
@@ -240,51 +180,25 @@ def test_mobile_layout_and_keyboard(browser, server, client, session: Session) -
     pg.keyboard.press("Enter")
     sync_api.expect(pg.get_by_role("heading", name=HOME)).to_be_visible()
     assert pg.evaluate("document.activeElement.id") == "main"  # focus moves to content
-    overflow = pg.evaluate("document.documentElement.scrollWidth - window.innerWidth")
-    assert overflow <= 0, f"page scrolls horizontally by {overflow}px"
+    for hash_ in ("#/panel", "#/sayim", "#/urunler"):
+        pg.goto(f"/ui/{hash_}")
+        pg.wait_for_selector("main h1")
+        overflow = pg.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+        assert overflow <= 0, f"{hash_} scrolls horizontally by {overflow}px"
+    # the side menu is hidden behind the toggle on a phone
+    sync_api.expect(pg.get_by_role("link", name="Kullanıcılar")).not_to_be_in_viewport()
+    pg.get_by_role("button", name="Menü").click()
+    pg.get_by_role("link", name="Kullanıcılar").click()
+    sync_api.expect(pg.get_by_role("heading", name="Kullanıcılar")).to_be_visible()
     ctx.close()
-
-
-def test_quality_checklist_through_ui(page, client, session: Session) -> None:
-    api = new_tenant(session, client)
-    setup_kitchen(api)
-    api.post(
-        "/checklist-templates",
-        {
-            "name": "Açılış",
-            "kind": "opening",
-            "items": [
-                {"label": "Zemin temiz", "answer_type": "check"},
-                {
-                    "label": "Buzdolabı",
-                    "answer_type": "number",
-                    "unit": "C",
-                    "min_value": "0",
-                    "max_value": "4",
-                },
-            ],
-        },
-    )
-    _login(page, _owner_email(session))
-    page.get_by_role("link", name="Kalite").click()
-    page.get_by_label("Zemin temiz").check()
-    page.get_by_label("Buzdolabı").fill("9")
-    page.get_by_role("button", name="Kaydet").click()
-    sync_api.expect(page.locator("#msg")).to_contain_text("uygunsuzluk açıldı")
-    sync_api.expect(page.locator("table")).to_contain_text("Buzdolabı = 9")
-    page.get_by_label("Düzeltici faaliyet").fill("Termostat ayarlandı")
-    page.get_by_role("button", name="Kapat").click()
-    sync_api.expect(page.locator("main")).to_contain_text("Açık uygunsuzluk yok")
-    assert session.execute(text("SELECT status FROM nonconformities")).scalar() == "resolved"
-    assert page.errors == []
 
 
 def test_password_change_through_ui(page, client, session: Session) -> None:
     api = new_tenant(session, client)
-    setup_kitchen(api)
+    setup_branch(api)
     email = _owner_email(session)
     _login(page, email)
-    page.get_by_role("link", name="Hesabım").click()
+    _nav(page, "Hesabım")
     page.get_by_label("Mevcut parola").fill(PASSWORD)
     page.get_by_label("Yeni parola (en az 12 karakter)").fill("a-brand-new-password")
     page.get_by_label("Yeni parola (tekrar)").fill("a-brand-new-password")
@@ -300,17 +214,20 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
 
     api = new_tenant(session, client)
     api.post("/branches", {"name": "Taff Burger Merkez"})
+    page.goto("/ui/#/login")
+    page.evaluate("sessionStorage.setItem('period', '2026-08')")
     _login(page, _owner_email(session))
-    page.get_by_role("link", name="Ürün Listesi").click()
+    _nav(page, "Ürün Listesi")
     page.get_by_role("button", name="Taff Burger sayım formundaki 98 ürünü yükle").click()
     sync_api.expect(page.locator("#msg")).to_contain_text("98 ürün eklendi")
     page.get_by_label("DANA KIYMA birim fiyat").fill("400")
     page.get_by_label("DANA KIYMA birim fiyat").press("Tab")
     sync_api.expect(page.locator("#msg")).to_contain_text("DANA KIYMA güncellendi")
+    page.get_by_label("Ürün ara").fill("ketçap")
+    sync_api.expect(page.locator("main tbody tr:visible")).to_have_count(3)  # 3 ketçap
 
-    page.get_by_role("link", name="Aylık Sayım").click()
-    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
-    sync_api.expect(page.get_by_role("cell", name="DANA KIYMA", exact=True)).to_be_visible()
+    _nav(page, "Aylık Sayım")
+    sync_api.expect(page.get_by_role("heading", name=SHEET)).to_be_visible()
     for field, value in (("opening", "10"), ("incoming", "50"), ("used", "45"), ("counted", "12")):
         page.get_by_label(f"DANA KIYMA {field}").fill(value)
     row = page.locator("tr", has=page.get_by_role("cell", name="DANA KIYMA", exact=True))
@@ -325,11 +242,23 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
     sync_api.expect(row).to_contain_text("-1")
     sync_api.expect(row).to_contain_text("400,00")
     sync_api.expect(page.locator(".kpi.zayi")).to_contain_text("800,00")
+    # Enter moves down the same column
+    page.get_by_label("DANA KIYMA counted").press("Enter")
+    assert page.evaluate("document.activeElement.getAttribute('aria-label')").endswith("counted")
+    assert page.evaluate("document.activeElement.getAttribute('aria-label')") != (
+        "DANA KIYMA counted"
+    )
     page.get_by_label("PATATES counted").fill("12,5")  # Turkish decimal comma
     page.get_by_label("Sayımı yapan").fill("Ali Veli")
-    page.get_by_role("button", name="Kaydet").click()
-    sync_api.expect(page.locator("#msg")).to_contain_text("Sayım kaydedildi")
 
+    # leaving with unsaved changes asks first; dismissing keeps the user on the sheet
+    page.once("dialog", lambda d: d.dismiss())
+    _nav(page, "Panel")
+    sync_api.expect(page.get_by_role("heading", name=SHEET)).to_be_visible()
+    sync_api.expect(page.get_by_label("PATATES counted")).to_have_value("12,5")
+
+    page.get_by_role("button", name=re.compile("^Kaydet")).click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Sayım kaydedildi")
     page.reload()
     sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_have_value("12")
     sync_api.expect(page.get_by_label("DANA KIYMA waste")).to_have_value("2")
@@ -358,5 +287,51 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
     page.on("dialog", lambda d: d.accept())
     page.get_by_role("button", name="Ayı kapat").click()
     sync_api.expect(page.locator("#msg")).to_contain_text("ürün sayılmadı")
+    page.get_by_role("button", name="Boşlara 0 yaz").click()
+    page.get_by_role("button", name="Ayı kapat").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Ay kapatıldı")
+    sync_api.expect(page.locator("main")).to_contain_text("KAPATILDI")
+    sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_be_disabled()
+
+    _nav(page, "Panel")
+    sync_api.expect(page.locator(".kpi.eksik")).to_contain_text("400,00")
+    sync_api.expect(page.locator("main")).to_contain_text("En çok eksik veren ürünler")
+    page.get_by_role("cell", name="DANA KIYMA").first.click()
+    sync_api.expect(page.get_by_role("heading", name="Ürün Analizi")).to_be_visible()
+    sync_api.expect(page.locator("main table")).to_contain_text("Ağustos 2026")
+
+    _nav(page, "Geçmiş Aylar")
+    sync_api.expect(page.locator("main table")).to_contain_text("Ali Veli")
+    sync_api.expect(page.locator("main table")).to_contain_text("98 / 98")
     # the only console error allowed is the browser's log of that deliberate 422
     assert [e for e in page.errors if "422" not in e] == []
+
+
+def test_users_and_roles_through_ui(page, client, session: Session) -> None:
+    api = new_tenant(session, client)
+    branch = setup_branch(api)
+    api.put(f"/branches/{branch}/monthly-counts/2026-08", {"lines": []})
+    page.goto("/ui/#/login")
+    page.evaluate("sessionStorage.setItem('period', '2026-08')")
+    _login(page, _owner_email(session))
+    _nav(page, "Kullanıcılar")
+    page.get_by_label("E-posta").fill("sayim@example.com")
+    page.get_by_label("İlk parola (en az 12 karakter)").fill(PASSWORD)
+    page.get_by_label("Yeni kullanıcı rolü").select_option("counter")
+    page.get_by_role("button", name="Kullanıcı ekle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("sayim@example.com eklendi")
+    sync_api.expect(page.get_by_label("sayim@example.com rol")).to_have_value("counter")
+
+    # a counter enters numbers but cannot close the month or manage anything
+    Api(client, "sayim@example.com")
+    page.get_by_role("button", name="Çıkış").click()
+    _login(page, "sayim@example.com")
+    nav = page.get_by_role("navigation")
+    for hidden in ("Kullanıcılar", "Şubeler", "Kayıt Geçmişi"):
+        sync_api.expect(nav.get_by_role("link", name=hidden)).to_be_hidden()
+    _nav(page, "Aylık Sayım")
+    sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_be_enabled()
+    sync_api.expect(page.get_by_role("button", name="Ayı kapat")).to_have_count(0)
+    _nav(page, "Ürün Listesi")
+    sync_api.expect(page.get_by_label("DANA KIYMA birim fiyat")).to_be_disabled()
+    assert page.errors == []

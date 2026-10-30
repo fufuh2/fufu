@@ -10,7 +10,7 @@ and keeps the unit prices it was closed with.
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,6 @@ from app.errors import Conflict, Invalid, NotFound
 from app.models import COUNT_UNITS, CountItem, MonthlyCount, MonthlyCountLine
 from app.security import Actor
 from app.services import audit
-from app.services.inventory import now
 from app.services.scope import get_active_branch, get_branch
 
 DEFAULT_ITEMS = Path(__file__).resolve().parent.parent / "data" / "taffburger_items.json"
@@ -36,7 +35,7 @@ MAX_QTY = Decimal("99999999999.999")
 
 
 def list_items(session: Session, actor: Actor, include_inactive: bool = False) -> list[CountItem]:
-    actor.require(Perm.STOCK_READ)
+    actor.require(Perm.COUNT_READ)
     stmt = select(CountItem).where(CountItem.tenant_id == actor.tenant_id)
     if not include_inactive:
         stmt = stmt.where(CountItem.is_active)
@@ -59,7 +58,7 @@ def create_item(
     unit: str,
     unit_price: Decimal | None,
 ) -> CountItem:
-    actor.require(Perm.CATALOG_MANAGE)
+    actor.require(Perm.ITEM_MANAGE)
     _check_item_fields(unit, unit_price)
     last = session.scalar(
         select(func.max(CountItem.sort_order)).where(CountItem.tenant_id == actor.tenant_id)
@@ -86,7 +85,7 @@ def create_item(
 def update_item(
     session: Session, actor: Actor, item_id: uuid.UUID, fields: dict[str, Any]
 ) -> CountItem:
-    actor.require(Perm.CATALOG_MANAGE)
+    actor.require(Perm.ITEM_MANAGE)
     item = session.scalar(
         select(CountItem).where(CountItem.id == item_id, CountItem.tenant_id == actor.tenant_id)
     )
@@ -115,7 +114,7 @@ def update_item(
 
 def load_default_items(session: Session, actor: Actor) -> dict[str, int]:
     """Adds the products from the restaurant's count form; existing names are skipped."""
-    actor.require(Perm.CATALOG_MANAGE)
+    actor.require(Perm.ITEM_MANAGE)
     data = json.loads(DEFAULT_ITEMS.read_text(encoding="utf-8"))["items"]
     existing = set(
         session.scalars(select(CountItem.name).where(CountItem.tenant_id == actor.tenant_id))
@@ -207,12 +206,12 @@ def _sync_draft(session: Session, count: MonthlyCount) -> None:
 
 def open_month(session: Session, actor: Actor, branch_id: uuid.UUID, period: str) -> MonthlyCount:
     """Returns the month's sheet, creating it as a draft on first access."""
-    actor.require(Perm.STOCK_READ)
+    actor.require(Perm.COUNT_READ)
     get_branch(session, actor, branch_id)
     p = _period_date(period)
     count = _get_count(session, actor, branch_id, p)
     if count is None:
-        actor.require(Perm.STOCK_COUNT)
+        actor.require(Perm.COUNT_EDIT)
         get_active_branch(session, actor, branch_id)
         count = MonthlyCount(
             tenant_id=actor.tenant_id,
@@ -272,7 +271,7 @@ def save_lines(
     updates: list[LineUpdate],
     header: dict[str, Any],
 ) -> MonthlyCount:
-    actor.require(Perm.STOCK_COUNT)
+    actor.require(Perm.COUNT_EDIT)
     get_active_branch(session, actor, branch_id)
     count = _get_count(session, actor, branch_id, _period_date(period), lock=True)
     if count is None:
@@ -350,7 +349,7 @@ def close_month(session: Session, actor: Actor, branch_id: uuid.UUID, period: st
         line.unit_price = prices.get(line.item_id)
     count.status = "closed"
     count.closed_by = actor.user_id
-    count.closed_at = now()
+    count.closed_at = datetime.now(UTC)
     audit.record(
         session,
         actor,
@@ -398,18 +397,6 @@ def reopen_month(
     )
     session.commit()
     return count
-
-
-def list_months(session: Session, actor: Actor, branch_id: uuid.UUID) -> list[MonthlyCount]:
-    actor.require(Perm.STOCK_READ)
-    get_branch(session, actor, branch_id)
-    return list(
-        session.scalars(
-            select(MonthlyCount)
-            .where(MonthlyCount.tenant_id == actor.tenant_id, MonthlyCount.branch_id == branch_id)
-            .order_by(MonthlyCount.period.desc())
-        )
-    )
 
 
 def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]:

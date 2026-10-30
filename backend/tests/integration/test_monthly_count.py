@@ -271,7 +271,7 @@ def test_permissions_and_isolation(client, session: Session) -> None:
         {
             "email": "cook@example.com",
             "password": PASSWORD,
-            "role": "shift_lead",
+            "role": "counter",
             "branch_ids": [branch],
         },
     )

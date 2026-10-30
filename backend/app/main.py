@@ -26,7 +26,7 @@ log = logging.getLogger("opsx")
 def create_app() -> FastAPI:
     settings = load_settings()  # fail fast on missing secrets
     app = FastAPI(
-        title="OperationOS-X",
+        title="Taff Burger Aylık Sayım",
         version="0.1.0",
         # Interactive docs and the schema are opt-in: only when OPSX_ENV=development.
         docs_url="/docs" if settings.env == "development" else None,

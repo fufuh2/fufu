@@ -27,10 +27,6 @@ class Invalid(DomainError):
     code = "invalid"
 
 
-class InsufficientStock(Conflict):
-    code = "insufficient_stock"
-
-
 class Unauthorized(DomainError):
     status_code = 401
     code = "unauthorized"
