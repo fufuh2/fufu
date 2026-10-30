@@ -16,7 +16,7 @@ services:
     buildCommand: pip install -r requirements.lock
     # Migrations run before the server starts; a failed migration stops the deploy.
     # bootstrap-if-empty creates the first owner only when OPSX_BOOTSTRAP_* are set and no tenant exists.
-    startCommand: alembic upgrade head && python -m app.cli bootstrap-if-empty && uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
+    startCommand: alembic upgrade head && python -m app.cli copy-from-if-empty && python -m app.cli bootstrap-if-empty && uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
     healthCheckPath: /readyz
     autoDeploy: true
     envVars:
