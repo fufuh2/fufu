@@ -1,0 +1,19 @@
+# Keeps the free Render instance awake so visitors never see Render's "Application loading"
+# page (free instances sleep after 15 minutes without traffic). Scheduled workflows only run
+# from the default branch (main); GitHub may delay a run by a few minutes under load.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the site (and its database through /readyz)
+        run: curl -fsS --retry 3 --retry-delay 20 --max-time 90 https://opsx-api.onrender.com/readyz
