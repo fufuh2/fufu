@@ -132,3 +132,24 @@ def test_audit_log_has_email_filter_and_paging(client, session: Session) -> None
     assert [e["action"] for e in page2] == ["monthly_count.open"]
     # '%' and '_' in the filter are literal, not wildcards
     assert api.get("/audit-events?action=%25").json() == []
+
+
+def test_setup_status_lists_what_is_missing(client, session: Session) -> None:
+    api = new_tenant(session, client)
+    branch = setup_branch(api)
+    st = api.get("/setup-status").json()
+    assert st["items"] == 98 and len(st["items_without_price"]) == 98
+    assert st["products"] == 0 and st["unconverted"] == []
+    api.post("/menu-products", {"name": "Boş Burger"})
+    api.post("/menu-products/load-defaults?add_missing_items=true")
+    api.post("/count-items/apply-supplier-data")
+    st = api.get("/setup-status").json()
+    assert st["products_without_recipe"] == ["Boş Burger"]
+    assert st["products_without_price"] == ["Boş Burger"]
+    assert "ICEBERG" in st["recipe_items_without_price"]
+    assert "HALKA TURŞU" in st["unconverted"]  # pieces of a 1 kg pack: weight unknown
+    d = api.get(f"/branches/{branch}/dashboard?period=2026-08").json()
+    assert d["current"] is None
+    api.put(f"/branches/{branch}/monthly-counts/2026-08", {"lines": []})
+    d = api.get(f"/branches/{branch}/dashboard?period=2026-08").json()
+    assert d["current"]["sales_entered"] is False

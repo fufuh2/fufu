@@ -124,6 +124,9 @@ def update_product(
 ) -> MenuProduct:
     actor.require(Perm.ITEM_MANAGE)
     p = _product(session, actor, product_id)
+    for key in ("name", "is_active", "sort_order"):
+        if key in fields and fields[key] is None:
+            raise Invalid(f"{key} boş bırakılamaz")
     for key, value in fields.items():
         setattr(p, key, value.strip() if isinstance(value, str) else value)
     try:
@@ -383,4 +386,28 @@ def apply_supplier_data(session: Session, actor: Actor, overwrite: bool) -> dict
         "not_applied": data["not_applied"],
         "not_in_count_list": data["not_in_count_list"],
         "source": data["source"],
+    }
+
+
+def setup_status(session: Session, actor: Actor) -> dict[str, Any]:
+    """What is still missing for the numbers to be complete, in plain terms for the panel."""
+    actor.require(Perm.COUNT_READ)
+    items = list(
+        session.scalars(
+            select(CountItem).where(CountItem.tenant_id == actor.tenant_id, CountItem.is_active)
+        )
+    )
+    products = list_products(session, actor)
+    active = [p for p in products if p["is_active"]]
+    in_recipes = {ln["item_id"] for p in active for ln in p["recipe"]}
+    return {
+        "items": len(items),
+        "items_without_price": sorted(i.name for i in items if i.unit_price is None),
+        "recipe_items_without_price": sorted(
+            i.name for i in items if i.id in in_recipes and i.unit_price is None
+        ),
+        "unconverted": [w["item_name"] for w in unconverted(session, actor.tenant_id)],
+        "products": len(active),
+        "products_without_recipe": [p["name"] for p in active if not p["recipe"]],
+        "products_without_price": [p["name"] for p in active if p["price"] is None],
     }

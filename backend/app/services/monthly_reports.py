@@ -13,20 +13,26 @@ from app.domain.permissions import Perm
 from app.errors import NotFound
 from app.models import Branch, CountItem, MonthlyCount, MonthlyCountLine
 from app.security import Actor
-from app.services.monthly import _get_count, _period_date, sheet
+from app.services.monthly import _get_count, _period_date, _sync_draft, sheet
 from app.services.scope import get_branch
 
 TOP_N = 10
 
 
 def _months(session: Session, actor: Actor, branch_id: uuid.UUID) -> list[MonthlyCount]:
-    return list(
+    months = list(
         session.scalars(
             select(MonthlyCount)
             .where(MonthlyCount.tenant_id == actor.tenant_id, MonthlyCount.branch_id == branch_id)
             .order_by(MonthlyCount.period.desc())
         )
     )
+    # Drafts follow recipe and price changes, as the count sheet does when it is opened.
+    for m in months:
+        if m.status == "draft":
+            _sync_draft(session, m)
+    session.commit()
+    return months
 
 
 def _summary(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]:
@@ -102,7 +108,11 @@ def dashboard(session: Session, actor: Actor, branch_id: uuid.UUID, period: str)
         "period": period,
         "current": None
         if current is None
-        else {"status": current["status"], "totals": current["totals"]},
+        else {
+            "status": current["status"],
+            "totals": current["totals"],
+            "sales_entered": any(x["quantity"] for x in current["sales"]),
+        },
         "focus_period": focus["period"] if focus is not None else None,
         "trend": trend,
         "top_missing": top_missing,
@@ -179,6 +189,8 @@ def overview(session: Session, actor: Actor, period: str) -> list[dict[str, Any]
     out = []
     for branch in session.scalars(stmt.order_by(Branch.name)):
         count = _get_count(session, actor, branch.id, p)
+        if count is not None and count.status == "draft":
+            _sync_draft(session, count)
         out.append(
             {
                 "branch_id": branch.id,

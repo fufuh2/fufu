@@ -151,6 +151,12 @@ def list_menu_products(actor: ActorDep, session: SessionDep) -> Any:
     return menu.list_products(session, actor)
 
 
+@router.get("/setup-status")
+def setup_status(actor: ActorDep, session: SessionDep) -> Any:
+    """Missing prices, conversions and recipes, for the panel's to-do card."""
+    return menu.setup_status(session, actor)
+
+
 @router.post("/count-items/apply-supplier-data")
 def apply_supplier_data(actor: ActorDep, session: SessionDep, overwrite: bool = False) -> Any:
     """Prices and package contents from the supplier list; overwrite replaces entered values."""

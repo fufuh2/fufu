@@ -14,8 +14,8 @@ function computeLine(c) {
   const d = k === null ? null : k - e;
   const st = d === null ? "sayilmadi" : d > 0 ? "fazla" : d < 0 ? "eksik" : "tamam";
   const price = c.unit_price === null || c.unit_price === undefined ? null : Number(c.unit_price);
-  const val = d === null || price === null ? null : Math.round((d / 1000) * price * 100) / 100;
-  const wv = price === null ? null : Math.round((milli(c.waste) / 1000) * price * 100) / 100;
+  const val = d === null || price === null ? null : roundHalfEven((d / 1000) * price * 100) / 100;
+  const wv = price === null ? null : roundHalfEven((milli(c.waste) / 1000) * price * 100) / 100;
   return { expected: fromMilli(e), difference: fromMilli(d), status: st, value: val, wasteValue: wv };
 }
 
@@ -53,7 +53,7 @@ function drawSheet(sheet) {
   const recipeUsed = (itemId) => {
     if (!recipes) return null;
     const uses = recipes[itemId] || [];
-    return fromMilli(Math.round(uses.reduce((acc, u) => acc + Number(sales.get(u.product_id) || 0) * Number(u.per_unit), 0) * 1000));
+    return fromMilli(roundHalfEven(uses.reduce((acc, u) => acc + Number(sales.get(u.product_id) || 0) * Number(u.per_unit), 0) * 1000));
   };
   const recipeTitle = (itemId, unit) => {
     const uses = (recipes || {})[itemId] || [];
@@ -185,7 +185,15 @@ function drawSheet(sheet) {
     const body = { ...dirty.header, lines: [...dirty.lines.values()],
       sales: [...dirty.sales].map(([product_id, quantity]) => ({ product_id, quantity })) };
     saveBtn.disabled = true;
-    const r = await api("PUT", `/branches/${state.branch}/monthly-counts/${sheet.period}`, body);
+    // Kayıt sürerken yazılan değer kaybolmasın: alanlar kayıt bitene kadar kilitlenir.
+    const locked = [...main().querySelectorAll("input, select, button")].filter((x) => !x.disabled);
+    for (const x of locked) x.disabled = true;
+    let r;
+    try {
+      r = await api("PUT", `/branches/${state.branch}/monthly-counts/${sheet.period}`, body);
+    } finally {
+      if (!r || !r.ok) for (const x of locked) x.disabled = false;
+    }
     if (!r.ok) { message(r.error); markDirty(); return false; }
     dirty.lines.clear(); dirty.header = {}; dirty.sales.clear();
     message("Sayım kaydedildi.", "info");
@@ -346,7 +354,7 @@ async function renderItems() {
     const unit = el("select", { disabled: !manage, "aria-label": `${i.name} birim` }, UNITS.map((u) => el("option", { value: u, selected: u === i.unit }, u)));
     const price = el("input", { inputmode: "decimal", class: "qty", value: i.unit_price === null ? "" : String(i.unit_price).replace(".", ","), disabled: !manage, "aria-label": `${i.name} birim fiyat` });
     const active = el("input", { type: "checkbox", checked: i.is_active, disabled: !manage, "aria-label": `${i.name} aktif` });
-    const cQty = el("input", { inputmode: "decimal", class: "qty", value: numForInput(i.content_qty), disabled: !manage, placeholder: "—", "aria-label": `${i.name} paket içeriği` });
+    const cQty = el("input", { inputmode: "decimal", class: "qty", value: numForInput4(i.content_qty), disabled: !manage, placeholder: "—", "aria-label": `${i.name} paket içeriği` });
     const cUnit = el("select", { disabled: !manage, "aria-label": `${i.name} paket içeriği birimi` }, el("option", { value: "" }, "—"),
       UNITS.map((u) => el("option", { value: u, selected: u === i.content_unit }, u)));
     const saveContent = async () => {
@@ -355,7 +363,7 @@ async function renderItems() {
       if (q === undefined) return;
       if ((q === null) !== (cUnit.value === "")) return; // ikisi birlikte girilince kaydedilir
       if (!(await patch({ content_qty: q, content_unit: cUnit.value || null }, "paket içeriği"))) {
-        cQty.value = numForInput(i.content_qty); cUnit.value = i.content_unit || "";
+        cQty.value = numForInput4(i.content_qty); cUnit.value = i.content_unit || "";
       }
     };
     cQty.addEventListener("change", saveContent);

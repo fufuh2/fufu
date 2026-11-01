@@ -20,7 +20,7 @@ async function renderMenu() {
     function addLine(l = { item_id: "", quantity: "", unit: "GR" }) {
       const n = lines.length + 1;
       const item = itemSelect(l.item_id, `${p.name} malzeme ${n}`);
-      const qty = el("input", { inputmode: "decimal", class: "qty", value: l.quantity === "" ? "" : numForInput(l.quantity), disabled: !manage, "aria-label": `${p.name} miktar ${n}` });
+      const qty = el("input", { inputmode: "decimal", class: "qty", value: l.quantity === "" ? "" : numForInput4(l.quantity), disabled: !manage, "aria-label": `${p.name} miktar ${n}` });
       const unit = el("select", { disabled: !manage, "aria-label": `${p.name} birim ${n}` }, RECIPE_UNITS.map((u) => el("option", { value: u, selected: u === l.unit }, u)));
       const remove = manage ? el("button", { type: "button", class: "danger", onclick: () => { lines.splice(lines.indexOf(rec), 1); tr.remove(); } }, "Sil") : "";
       const tr = el("tr", {}, el("td", {}, item), el("td", { class: "num" }, qty), el("td", {}, unit),

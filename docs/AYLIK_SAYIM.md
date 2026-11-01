@@ -1,6 +1,7 @@
 # Aylık Sayım — Kullanım
 
-Adres: https://opsx-api.onrender.com/ui/ → giriş → **Panel** (açılış sayfası).
+Adres: https://opsx-api.onrender.com/ui/ → giriş → **Panel** (açılış sayfası). Panelin en üstündeki
+**Yapılacaklar** kartı eksik fiyat, paket içeriği, reçete ve satış girişini tek yerde gösterir; liste boşsa kurulum tamamdır.
 
 ## Sayfalar
 | Sayfa | Ne işe yarar |
@@ -38,8 +39,8 @@ görünür, sıfır kabul edilmez.
 Sayılan miktar bundan azsa fark **EKSİK** çıkar: porsiyon fazla konuyor, zayi yazılmıyor ya da kayıp var demektir.
 
 1. **Menü & Reçeteler**: her burger / menü ürününü ekleyin; 1 adet için malzemeleri GR, KG, ML, LT veya ADET ile girin.
-2. Adetle sayılan ürünler (KOVA KETÇAP, BBQ SOS…) için **Ürün Listesi → Paket içeriği** girin (örn. 1 ADET = 9,5 KG).
-   Böylece reçetede 19 GR yazılabilir; 1000 satış × 19 gr = 19 kg = 2 kova düşülür.
+2. Adetle sayılan ürünler (KOVA KETÇAP, BBQ SOS…) için **Ürün Listesi → Paket içeriği** girin (örn. KOVA KETÇAP 1 ADET = 9 KG).
+   Böylece reçetede 19 GR yazılabilir; 1000 satış × 19 gr = 19 kg ≈ 2,1 kova düşülür.
 3. Her ay **Aylık Sayım → Menü satışları** kutusuna o ay satılan adetleri yazın (POS raporundan). Değerler anında hesaplanır.
 4. "Satıştan" hücresinin üzerine gelince hangi üründen ne kadar düşüldüğü görünür.
 
@@ -51,10 +52,12 @@ Reçete değişirse **taslak** aylar yeniden hesaplanır; **kapatılmış** ay k
 - **Sayım listesinde olmayan malzemeler** (Iceberg, kaplamalı tavuk, Dynamite/Seul/Mexican/Royale/Bacon Jam/TSO/
   Parmesan Garlic/Tahin sos, domates, soğanlar, jalapeno, Doritos, falafel, mücver): butonla listeye eklenip reçetelere bağlanır.
 - **Çevrimi eksik malzemeler**: cheddar (dilim), salatalık ve halka turşusu (adet), adetle sayılan ketçap / hardal /
-  mayonez / BBQ. Ürün Listesi'nde paket içeriği girilene kadar (örn. 1 KG cheddar = 50 ADET) düşülmez; sayım formu uyarır.
+  mayonez / BBQ. Ürün Listesi'nde paket içeriği girilene kadar düşülmez; sayım formu uyarır. **Tedarikçi fiyat ve paket
+  bilgilerini uygula** butonu bunların çoğunu doldurur (cheddar 1 KG = 70 dilim, kova ketçap 9 kg, kova mayonez 8 kg, Top Down şişeler).
 
 Varsayımlar rapordadır: ekmek her burgere 1 adet (Balance hariç), salatalık turşusu = KÜHNE ALMAN TURŞU,
-karamelize soğan = FAKE SOĞANI, özel barbekü = BBO SOS, ketçap/hardal = TOP DOWN, mayonez = KOVA MAYONEZ.
+karamelize soğan = FAKE SOĞANI, özel barbekü = TAFF ÖZEL BBQ SOS, ketçap/hardal = TOP DOWN, mayonez = KOVA MAYONEZ.
+Maliyet analizi: `docs/MALIYET_ANALIZI.md`.
 Shogun'un menü metninde tavuk yok; gerekiyorsa reçeteye elle ekleyin.
 
 ## Ay sonu adımları
@@ -64,7 +67,8 @@ Shogun'un menü metninde tavuk yok; gerekiyorsa reçeteye elle ekleyin.
 3. Elde olmayan ürünler için **Boşlara 0 yaz**. "Sayımı yapan" adını yazın, **Kaydet**.
 4. **Göster** filtresiyle Eksikler / Fazlalar / Zayi olanlar'ı kontrol edin.
 5. **Ayı kapat** (şube müdürü veya işletme sahibi). Kapatılan ay değiştirilemez; sayılanlar sonraki ayın devri olur,
-   o anki birim fiyatlar sabitlenir.
+   o anki birim fiyatlar sabitlenir. Aylar **sırayla** kapatılır: üzerinde çalışılmış önceki ay açıksa kapatma reddedilir
+   (yalnızca göz atılıp boş bırakılan aylar engel olmaz). Sayım sırasında pasife alınan ürün kapatmayı engellemez.
 6. **Excel indir** veya **Yazdır**.
 
 Kaydedilmemiş değişiklik varken başka sayfaya, aya veya şubeye geçerken uyarı çıkar.
@@ -84,3 +88,5 @@ Hata fark edilirse **Yeniden aç** (neden zorunlu, kayda geçer). Sonraki ay kap
 - Zayinin nedeni tutulmaz.
 - Aynı ayı iki kişi aynı anda düzenlerse son kaydeden kazanır.
 - Excel'den sayım yükleme yok.
+- Sayımlarda kullanılmış bir ürünün birimi değiştirilemez (eski miktarlar yanlış okunurdu); yeni birimle ayrı ürün ekleyin.
+- Excel'deki satır formülleri düzenlemeyi takip eder; alttaki özet, dosyanın oluşturulduğu andaki değerlerdir.

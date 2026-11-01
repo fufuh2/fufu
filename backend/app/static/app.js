@@ -4,6 +4,9 @@
 
 // 401 gelince oturum bitmiştir; çizilmekte olan sayfa giriş ekranının üstüne boyamasın.
 class SessionEnded extends Error {}
+// Kullanıcı sayfa yüklenirken başka sayfaya geçtiyse eski sayfanın yanıtı çizilmez.
+class StaleRoute extends Error {}
+let routeGen = 0;
 
 const state = { pendingMessage: null, token: null, me: null, branch: null, branches: [], allBranches: [], guard: null };
 const routes = {};
@@ -91,9 +94,20 @@ function parseDecimal(text, decimals = 3, intDigits = 11) {
   return re.test(t) ? t : undefined;
 }
 function numForInput(v) { return v === null || v === undefined ? "" : qtyFmt.format(Number(v)).replace(/\./g, ""); }
+const qty4Fmt = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 4 });
+// Paket içeriği ve reçete miktarı 4 ondalıkla saklanır; 3'e yuvarlanıp geri yazılmasın.
+function numForInput4(v) { return v === null || v === undefined ? "" : qty4Fmt.format(Number(v)).replace(/\./g, ""); }
+// Sunucu ROUND_HALF_EVEN kullanır; ekranda aynı sonucu vermek için tam ortadaki değer çifte yuvarlanır.
+function roundHalfEven(x) {
+  const f = Math.floor(x);
+  const d = x - f;
+  if (Math.abs(d - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
+  return Math.round(x);
+}
 
 // ---- API -----------------------------------------------------------------------------------
 async function api(method, path, body, headers = {}) {
+  const gen = routeGen;
   const opts = { method, headers: { ...headers } };
   if (state.token) opts.headers.Authorization = `Bearer ${state.token}`;
   if (body !== undefined) {
@@ -112,6 +126,7 @@ async function api(method, path, body, headers = {}) {
     logout("Oturumunuz sona erdi. Lütfen tekrar giriş yapın.");
     throw new SessionEnded();
   }
+  if (gen !== routeGen && method === "GET") throw new StaleRoute();
   return { ok: res.ok, status: res.status, data, error: res.ok ? null : describe(res.status, data) };
 }
 
@@ -238,11 +253,13 @@ async function route() {
   document.getElementById("menu-toggle").setAttribute("aria-expanded", "false");
   state.guard = null;
   lastHash = hash;
+  routeGen += 1;
   main().replaceChildren(el("p", { class: "empty" }, "Yükleniyor…"));
   try {
     await page();
   } catch (err) {
     if (err instanceof SessionEnded) return; // logout() giriş ekranını zaten gösterdi
+    if (err instanceof StaleRoute) return; // kullanıcı bu arada başka sayfaya geçti
     message("Beklenmeyen bir hata oluştu. Sayfayı yenileyin.");
     throw err;
   }
@@ -276,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showPending(); route();
   });
   window.addEventListener("beforeunload", (ev) => { if (state.guard && state.guard()) { ev.preventDefault(); ev.returnValue = ""; } });
-  window.addEventListener("unhandledrejection", (ev) => { if (ev.reason instanceof SessionEnded) ev.preventDefault(); });
+  window.addEventListener("unhandledrejection", (ev) => { if (ev.reason instanceof SessionEnded || ev.reason instanceof StaleRoute) ev.preventDefault(); });
   // Sayfa betikleri (count.js, panel.js, admin.js) defer ile bu dosyadan sonra yüklenir.
   route();
 });

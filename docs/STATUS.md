@@ -22,12 +22,13 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 | Excel: Beklenen/Fark/Fark ₺/Zayi ₺ gerçek formül; sütun-başlık kayması hata verir | `test_monthly_count.py` (Excel testi), `monthly_export.py` |
 | Reçete: menü satışı × reçete = "Satıştan"; GR→KG, ML→LT ve paket içeriği (1 ADET = 9,5 KG) çevrimi; kapatılan ay reçete değişince değişmez | `tests/integration/test_recipes.py`, `test_recipes_and_sales_through_ui` |
 | Tedarikçi verisi (47 fiyat, paket içeriği) ve burger maliyeti / oranı; elle girilen fiyat korunur | `test_supplier_prices_and_food_cost`, `docs/MALIYET_ANALIZI.md` |
+| Bağımsız kod incelemesi (2026-11-01) 9 bulgu: ay kapatma sırası, pasif ürünün kapatmayı kilitlemesi, kullanılmış ürünün birim değişikliği, Excel formül enjeksiyonu, kayıt sırasında yazılanın kaybolması, ekran/sunucu yuvarlama farkı, 4 ondalığın 3'e düşmesi, boş alanın yanlış hata vermesi, eski sayfanın yenisinin üstüne çizilmesi — hepsi düzeltildi | `test_review_fixes`, `test_setup_status_lists_what_is_missing`, tarayıcı testleri |
 | Veritabanı taşıma: `copy-from-if-empty` tek transaction, boş hedef ve aynı şema şartı | `tests/integration/test_copy.py` |
 | Panel, ay listesi toplamları, ürün geçmişi, şubeler özeti; panel ay oluşturmaz | `tests/integration/test_reports.py` |
 | Roller ve şube kapsamı; tenant izolasyonu; kaldırılan uç noktalar 404 | `tests/integration/test_security.py` |
 | Parola değişimi/sıfırlama ve rol değişimi oturumları kapatır | `test_management.py`, `test_reports.py` |
 | Değiştirilemez kayıt geçmişi (DB trigger), e-posta ve filtre ile | `test_schema.py`, `test_reports.py` |
-| Arayüz: canlı hesap, Enter ile gezinme, kaydedilmemiş değişiklik uyarısı, "Boşlara 0 yaz", rol bazlı menü, mobil düzen, XSS | `tests/ui/test_browser.py` (8 test, gerçek Chromium) |
+| Arayüz: canlı hesap, Enter ile gezinme, kaydedilmemiş değişiklik uyarısı, "Boşlara 0 yaz", rol bazlı menü, mobil düzen, XSS | `tests/ui/test_browser.py` (10 test, gerçek Chromium) |
 | Migration 0010 eski verili veritabanında | Elle denendi (2026-10-30): roller eşlendi, POS hesabı pasif, 9 tablo kaldı, `alembic check` temiz. Otomatik testi yok. |
 
 ## Bilinen sınırlar
@@ -38,3 +39,4 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 - Şifre sıfırlama e-postası yok; işletme sahibi Kullanıcılar sayfasından yeni parola belirler.
 - MFA yok. Token süresi 30 dk.
 - Ücretsiz Render veritabanı 2026-11-16'da sona eriyor (bkz. `DEPLOY.md`).
+- Uyandırma görevi (GitHub Actions, 10 dk) GitHub tarafından seyrekleştiriliyor: 31 Ekim–1 Kasım arası 24 saatte yalnızca 5 kez çalıştı. Uyku ekranını güvenilir biçimde önlemiyor.

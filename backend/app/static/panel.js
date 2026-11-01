@@ -30,14 +30,33 @@ function barChart(points, { width = 640, height = 190, unit = "" } = {}) {
   return g;
 }
 
+// Yapılacaklar: rakamların eksiksiz çıkması için kalan işler, en önemlisi önce.
+function todoCard(st, d) {
+  const todo = [];
+  const list = (names) => (names.length > 4 ? `${names.slice(0, 4).join(", ")} ve ${names.length - 4} diğer` : names.join(", "));
+  const go = (hash, text) => el("a", { href: hash }, text);
+  if (!st.items) todo.push(["Ürün listesi boş.", go("#/urunler", "Ürün Listesi'ne git")]);
+  if (st.recipe_items_without_price.length) todo.push([`Reçetede kullanılan ${st.recipe_items_without_price.length} malzemenin fiyatı yok (${list(st.recipe_items_without_price)}); burger maliyeti eksik hesaplanıyor.`, go("#/urunler", "Fiyat gir")]);
+  if (st.unconverted.length) todo.push([`${st.unconverted.length} malzemenin paket içeriği yok (${list(st.unconverted)}); satıştan düşülmüyor.`, go("#/urunler", "Paket içeriği gir")]);
+  if (st.products_without_recipe.length) todo.push([`${st.products_without_recipe.length} menü ürününün reçetesi yok (${list(st.products_without_recipe)}).`, go("#/receteler", "Reçete gir")]);
+  if (st.products_without_price.length) todo.push([`${st.products_without_price.length} menü ürününün satış fiyatı yok (${list(st.products_without_price)}).`, go("#/receteler", "Fiyat gir")]);
+  if (st.products && d.current && d.current.status === "draft" && !d.current.sales_entered) todo.push(["Bu ayın menü satışları girilmedi; soslar ve malzemeler satıştan düşülmüyor.", go("#/sayim", "Satışları gir")]);
+  const other = st.items_without_price.length - st.recipe_items_without_price.length;
+  if (other > 0) todo.push([`${other} üründe birim fiyat yok; bunların farkı TL olarak hesaplanmaz.`, go("#/urunler", "Ürün Listesi")]);
+  if (!todo.length) return el("section", { class: "card todo ok-box" }, el("strong", {}, "✓ Kurulum tamam."), " Fiyatlar, paket içerikleri ve reçeteler eksiksiz.");
+  return el("section", { class: "card todo" }, el("h2", {}, "Yapılacaklar"),
+    el("ol", {}, todo.map(([t, a]) => el("li", {}, t, " ", a))));
+}
+
 function signClass(v) { return Number(v) < 0 ? "neg" : Number(v) > 0 ? "pos" : ""; }
 
 async function renderPanel() {
   if (!(await ensureBranch())) return;
   const period = getPeriod();
-  const [dash, overview] = await Promise.all([
+  const [dash, overview, setup] = await Promise.all([
     api("GET", `/branches/${state.branch}/dashboard?period=${period}`),
     state.branches.length > 1 ? api("GET", `/monthly-counts/overview?period=${period}`) : Promise.resolve(null),
+    api("GET", "/setup-status"),
   ]);
   if (!dash.ok) { message(dash.error); return; }
   const d = dash.data;
@@ -45,6 +64,7 @@ async function renderPanel() {
     d.current ? statusBadge(d.current.status) : statusBadge(null),
     monthInput(period, (p) => { setPeriod(p); renderPanel(); }));
   const parts = [head];
+  if (setup.ok) parts.push(todoCard(setup.data, d));
 
   if (d.current) {
     const t = d.current.totals;

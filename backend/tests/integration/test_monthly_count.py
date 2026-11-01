@@ -257,10 +257,10 @@ def test_excel_export(client, session: Session) -> None:
     assert header[14] == "Zayi tutarı (₺)"
     # devir 20 + gelen 100 - reçete 0 - satılan 90 - zayi 3 = 27; sayılan 25 -> 2 eksik
     assert [ws.cell(r, c).value for c in (3, 4, 5, 6, 7, 8, 10)] == ["KG", 20, 100, 0, 90, 3, 25]
-    assert ws.cell(r, 9).value == f"=D{r}+E{r}-F{r}-G{r}-H{r}"
-    assert ws.cell(r, 11).value == f'=IF(J{r}="","",J{r}-I{r})'
-    assert ws.cell(r, 12).value == "EKSİK"
-    assert ws.cell(r, 15).value == f'=IF(M{r}="","",H{r}*M{r})'
+    assert ws.cell(r, 9).value == f"=ROUND(D{r}+E{r}-F{r}-G{r}-H{r},3)"
+    assert ws.cell(r, 11).value == f'=IF(J{r}="","",ROUND(J{r}-I{r},3))'
+    assert ws.cell(r, 12).value.startswith(f'=IF(K{r}="","SAYILMADI"')
+    assert ws.cell(r, 15).value == f'=IF(M{r}="","",ROUND(H{r}*M{r},2))'
     assert "TAFF BURGER MERKEZ" in ws["A1"].value
 
 
@@ -300,3 +300,42 @@ def test_permissions_and_isolation(client, session: Session) -> None:
     assert _put(
         other, ob, "2026-08", {"lines": [{"item_id": items["PATATES"], "counted": "1"}]}
     ).status_code in (404, 422)
+
+
+def test_review_fixes(client, session: Session) -> None:
+    """Close order, deactivated items, unit changes and text cells in Excel."""
+    api = new_tenant(session, client)
+    branch, items = _setup(api)
+    # September has data, October is closed first -> refused until September is closed
+    _put(api, branch, "2026-09", {"lines": [{"item_id": items["PATATES"], "incoming": "5"}]})
+    _count_all(api, branch, "2026-10", items)
+    res = api.post(f"/branches/{branch}/monthly-counts/2026-10/close")
+    assert res.status_code == 409 and "2026-09" in res.json()["detail"]["message"]
+    # a month only browsed to (no data) does not block
+    api.get(f"/branches/{branch}/monthly-counts/2026-07")
+    _count_all(api, branch, "2026-09", items)
+    # deactivating an uncounted item no longer blocks the close
+    api.client.patch(
+        f"/api/v1/count-items/{items['PATATES']}", json={"is_active": False}, headers=api.headers
+    )
+    _put(api, branch, "2026-09", {"lines": [{"item_id": items["PATATES"], "clear_counted": True}]})
+    assert api.post(f"/branches/{branch}/monthly-counts/2026-09/close").status_code == 200
+    closed = api.get(f"/branches/{branch}/monthly-counts/2026-09").json()
+    assert closed["totals"]["items"] == 97
+    assert api.post(f"/branches/{branch}/monthly-counts/2026-10/close").status_code == 200
+    # unit change on an item with history is refused; null name is a clear 422
+    res = api.client.patch(
+        f"/api/v1/count-items/{items['DANA KIYMA']}", json={"unit": "GR"}, headers=api.headers
+    )
+    assert res.status_code == 422 and "birim" in res.json()["detail"]["message"]
+    res = api.client.patch(
+        f"/api/v1/count-items/{items['DANA KIYMA']}", json={"name": None}, headers=api.headers
+    )
+    assert res.status_code == 422
+    # user text that looks like a formula is exported as text
+    _put(api, branch, "2026-11", {"counted_by_name": '=HYPERLINK("http://x","y")', "lines": []})
+    ws = openpyxl.load_workbook(
+        BytesIO(api.get(f"/branches/{branch}/monthly-counts/2026-11/export.xlsx").content)
+    ).active
+    cell = next(ws.cell(r, 2) for r in range(1, 10) if ws.cell(r, 1).value == "Sayımı yapan")
+    assert cell.data_type == "s" and cell.value.startswith("=HYPERLINK")

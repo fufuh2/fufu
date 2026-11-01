@@ -1,7 +1,9 @@
 """Excel export of a monthly count sheet.
 
-Expected and difference cells are real Excel formulas, so the file stays correct if
-someone edits a number in Excel; the same values are computed by the API (domain.monthly).
+Expected, difference, status and value cells are real Excel formulas rounded like the API
+(3 decimals for quantities, 2 for money), so the line stays correct if someone edits a number
+in Excel. The summary block below the table is a snapshot taken when the file was created.
+Text from users is always written as text, never as a formula.
 """
 
 from datetime import date
@@ -36,7 +38,20 @@ THIN = Side(style="thin", color="BBBBBB")
 BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 QTY_FMT = "#,##0.###"
 MONEY_FMT = '#,##0.00 "₺"'
-STATUS_TR = {"fazla": "FAZLA", "eksik": "EKSİK", "tamam": "TAMAM", "sayilmadi": "SAYILMADI"}
+
+
+def _put(ws: Any, row: int, col: int, value: Any) -> Any:
+    """Writes a cell; strings are forced to text so '=HYPERLINK(...)' in a name stays inert."""
+    c = ws.cell(row, col, value)
+    if isinstance(value, str) and not getattr(value, "is_formula", False):
+        c.data_type = "s"
+    return c
+
+
+class _F(str):
+    """A formula the export itself wrote."""
+
+    is_formula = True
 
 
 def _num(v: Decimal | None) -> float | None:
@@ -49,8 +64,7 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
     ws = wb.active
     ws.title = f"SAYIM {sheet['period']}"
     bold = Font(bold=True)
-    ws["A1"] = f"{restaurant.upper()} — AYLIK SAYIM LİSTESİ"
-    ws["A1"].font = Font(bold=True, size=14)
+    _put(ws, 1, 1, f"{restaurant.upper()} — AYLIK SAYIM LİSTESİ").font = Font(bold=True, size=14)
     meta = [
         ("Dönem", sheet["period"]),
         (
@@ -64,8 +78,8 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
         ("Devir kaynağı", sheet["opening_from"] or "elle girildi (önceki kapanmış ay yok)"),
     ]
     for i, (k, v) in enumerate(meta, start=2):
-        ws.cell(i, 1, k).font = bold
-        ws.cell(i, 2, v)
+        _put(ws, i, 1, k).font = bold
+        _put(ws, i, 2, v)
     head_row = len(meta) + 3
     for col, title in enumerate(HEADERS, start=1):
         c = ws.cell(head_row, col, title)
@@ -78,7 +92,7 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
     r = head_row + 1
     first = r
     for group in sheet["groups"]:
-        gc = ws.cell(r, 1, group["name"].upper())
+        gc = _put(ws, r, 1, group["name"].upper())
         gc.font = bold
         gc.fill = PatternFill("solid", fgColor="DDEBF7")
         for col in range(1, len(HEADERS) + 1):
@@ -94,19 +108,19 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
                 _num(line["recipe_used"]),
                 _num(line["used"]),
                 _num(line["waste"]),
-                f"=D{r}+E{r}-F{r}-G{r}-H{r}",
+                _F(f"=ROUND(D{r}+E{r}-F{r}-G{r}-H{r},3)"),
                 _num(line["counted"]),
-                f'=IF(J{r}="","",J{r}-I{r})',
-                STATUS_TR[line["status"]],
+                _F(f'=IF(J{r}="","",ROUND(J{r}-I{r},3))'),
+                _F(f'=IF(K{r}="","SAYILMADI",IF(K{r}>0,"FAZLA",IF(K{r}<0,"EKSİK","TAMAM")))'),
                 _num(line["unit_price"]),
-                f'=IF(OR(K{r}="",M{r}=""),"",K{r}*M{r})',
-                f'=IF(M{r}="","",H{r}*M{r})',
+                _F(f'=IF(OR(K{r}="",M{r}=""),"",ROUND(K{r}*M{r},2))'),
+                _F(f'=IF(M{r}="","",ROUND(H{r}*M{r},2))'),
             ]
             if len(values) != len(HEADERS):
                 # A silent shift would put numbers under the wrong headings.
                 raise RuntimeError("export columns do not match headers")
             for col, v in enumerate(values, start=1):
-                c = ws.cell(r, col, v)
+                c = _put(ws, r, col, v)
                 c.border = BOX
                 if col in (4, 5, 6, 7, 8, 9, 10, 11):
                     c.number_format = QTY_FMT
@@ -123,6 +137,8 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
     )
     r += 1
     t = sheet["totals"]
+    _put(ws, r, 2, "Özet (dosya oluşturulduğu andaki değerler)").font = bold
+    r += 1
     summary = [
         ("Toplam ürün", t["items"]),
         ("Sayılan", t["counted"]),
@@ -138,8 +154,8 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
         ("Not", sheet["value_coverage"]),
     ]
     for k, v in summary:
-        ws.cell(r, 2, k).font = bold
-        c = ws.cell(r, 3, v)
+        _put(ws, r, 2, k).font = bold
+        c = _put(ws, r, 3, v)
         if isinstance(v, float):
             c.number_format = MONEY_FMT
         r += 1
@@ -147,11 +163,11 @@ def build_workbook(sheet: dict[str, Any], restaurant: str) -> bytes:
     ws.page_setup.fitToWidth = 1
     ws.print_title_rows = f"{head_row}:{head_row}"
     sales = wb.create_sheet("Satışlar")
-    sales.append(["Menü ürünü", "Bu ay satılan"])
-    for cell in sales[1]:
-        cell.font = bold
-    for sale in sheet["sales"]:
-        sales.append([sale["name"], _num(sale["quantity"])])
+    _put(sales, 1, 1, "Menü ürünü").font = bold
+    _put(sales, 1, 2, "Bu ay satılan").font = bold
+    for i, sale in enumerate(sheet["sales"], start=2):
+        _put(sales, i, 1, sale["name"])
+        _put(sales, i, 2, _num(sale["quantity"]))
     sales.column_dimensions["A"].width = 40
     sales.column_dimensions["B"].width = 16
     buf = BytesIO()

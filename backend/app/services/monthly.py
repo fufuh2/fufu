@@ -109,6 +109,27 @@ def update_item(
     if item is None:
         raise NotFound("ürün bulunamadı")
     _check_item_fields(fields.get("unit"), fields.get("unit_price"), fields.get("content_unit"))
+    for key in ("group_name", "name", "unit", "sort_order", "is_active"):
+        if key in fields and fields[key] is None:
+            raise Invalid(f"{key} boş bırakılamaz")
+    if "unit" in fields and fields["unit"] != item.unit:
+        used = session.scalar(
+            select(MonthlyCountLine.id)
+            .where(
+                MonthlyCountLine.item_id == item.id,
+                (MonthlyCountLine.counted.is_not(None))
+                | (MonthlyCountLine.opening != 0)
+                | (MonthlyCountLine.incoming != 0)
+                | (MonthlyCountLine.used != 0)
+                | (MonthlyCountLine.waste != 0),
+            )
+            .limit(1)
+        )
+        if used is not None:
+            raise Invalid(
+                f"{item.name} sayımlarda {item.unit} ile kayıtlı; birim değişirse eski miktarlar "
+                "yanlış okunur. Yeni birimle ayrı bir ürün ekleyip bunu pasife alın."
+            )
     before = {k: str(getattr(item, k)) for k in fields}
     for key, value in fields.items():
         setattr(item, key, value.strip() if isinstance(value, str) else value)
@@ -181,6 +202,44 @@ def _get_count(
     return session.scalar(stmt)
 
 
+def _has_data(session: Session, count: MonthlyCount) -> bool:
+    """A sheet someone actually worked on. Drafts created only by browsing to a month are
+    ignored for the opening chain and the close order."""
+    if count.status == "closed" or count.counted_by_name:
+        return True
+    line = session.scalar(
+        select(MonthlyCountLine.id)
+        .where(
+            MonthlyCountLine.count_id == count.id,
+            (MonthlyCountLine.counted.is_not(None))
+            | (MonthlyCountLine.incoming != 0)
+            | (MonthlyCountLine.used != 0)
+            | (MonthlyCountLine.waste != 0)
+            | ((MonthlyCountLine.opening != 0) & ~MonthlyCountLine.opening_locked),
+        )
+        .limit(1)
+    )
+    if line is not None:
+        return True
+    return (
+        session.scalar(
+            select(MonthlySale.product_id).where(MonthlySale.count_id == count.id).limit(1)
+        )
+        is not None
+    )
+
+
+def _previous_sheet(session: Session, count: MonthlyCount) -> MonthlyCount | None:
+    for earlier in session.scalars(
+        select(MonthlyCount)
+        .where(MonthlyCount.branch_id == count.branch_id, MonthlyCount.period < count.period)
+        .order_by(MonthlyCount.period.desc())
+    ):
+        if _has_data(session, earlier):
+            return earlier
+    return None
+
+
 def _sync_draft(session: Session, count: MonthlyCount) -> None:
     """Keep a draft in step with the product list and with the previous closed month."""
     lines = {
@@ -196,14 +255,9 @@ def _sync_draft(session: Session, count: MonthlyCount) -> None:
             line = MonthlyCountLine(count_id=count.id, item_id=item.id)
             session.add(line)
             lines[item.id] = line
-    # Only the latest earlier sheet counts. If it was reopened (draft), skipping back to an
-    # older closed month would silently replace the opening with stale numbers.
-    latest = session.scalar(
-        select(MonthlyCount)
-        .where(MonthlyCount.branch_id == count.branch_id, MonthlyCount.period < count.period)
-        .order_by(MonthlyCount.period.desc())
-        .limit(1)
-    )
+    # Only the latest earlier sheet with data counts. If it was reopened (draft), skipping back
+    # to an older closed month would silently replace the opening with stale numbers.
+    latest = _previous_sheet(session, count)
     prev = latest if latest is not None and latest.status == "closed" else None
     prev_counted: dict[uuid.UUID, Decimal | None] = {}
     if prev is not None:
@@ -379,10 +433,28 @@ def close_month(session: Session, actor: Actor, branch_id: uuid.UUID, period: st
         raise NotFound("bu ay için sayım açılmamış")
     if count.status == "closed":
         raise Conflict("bu ay zaten kapatılmış")
+    earlier = _previous_sheet(session, count)
+    if earlier is not None and earlier.status != "closed":
+        raise Conflict(
+            f"önce {earlier.period.strftime('%Y-%m')} ayını kapatın; aylar sırayla kapatılır "
+            "(devir bir önceki ayın sayımından gelir)"
+        )
     _sync_draft(session, count)
-    lines = list(
-        session.scalars(select(MonthlyCountLine).where(MonthlyCountLine.count_id == count.id))
+    # Lines of products deactivated while the month was a draft are not shown on the sheet;
+    # drop them so the closed month matches what was counted.
+    inactive = set(
+        session.scalars(
+            select(CountItem.id).where(CountItem.tenant_id == count.tenant_id, ~CountItem.is_active)
+        )
     )
+    lines = []
+    for line in session.scalars(
+        select(MonthlyCountLine).where(MonthlyCountLine.count_id == count.id)
+    ):
+        if line.item_id in inactive:
+            session.delete(line)
+        else:
+            lines.append(line)
     missing = [line for line in lines if line.counted is None]
     if missing:
         raise Invalid(
@@ -527,12 +599,7 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
             if r.waste_value is not None:
                 totals["waste_value"] += r.waste_value
     totals["net_difference_value"] = totals["fazla_value"] + totals["eksik_value"]
-    prev = session.scalar(
-        select(MonthlyCount)
-        .where(MonthlyCount.branch_id == count.branch_id, MonthlyCount.period < count.period)
-        .order_by(MonthlyCount.period.desc())
-        .limit(1)
-    )
+    prev = _previous_sheet(session, count)
     sold = menu.sales_of(session, count.id)
     products = [
         {"product_id": p.id, "name": p.name, "quantity": sold.get(p.id, Decimal("0"))}
