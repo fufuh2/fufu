@@ -163,12 +163,17 @@ class SaleIn(Strict):
     quantity: CountQty
 
 
+MenuPrice = Annotated[Decimal, Field(ge=0, le=Decimal("1000000"), decimal_places=2)]
+
+
 class MenuProductIn(Strict):
     name: Annotated[str, Field(min_length=1, max_length=200)]
+    price: MenuPrice | None = None
 
 
 class MenuProductPatch(Strict):
     name: Annotated[str, Field(min_length=1, max_length=200)] | None = None
+    price: MenuPrice | None = None
     is_active: bool | None = None
     sort_order: Annotated[int, Field(ge=0, le=1000000)] | None = None
 

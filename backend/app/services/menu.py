@@ -53,9 +53,15 @@ def list_products(session: Session, actor: Actor) -> list[dict[str, Any]]:
         .order_by(CountItem.sort_order, CountItem.name)
     ):
         per = _per_unit(line, item)
+        cost = (
+            None
+            if per is None or item.unit_price is None
+            else (per * item.unit_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+        )
         lines.setdefault(line.product_id, []).append(
             {
                 "item_id": item.id,
+                "cost": cost,
                 "item_name": item.name,
                 "item_unit": item.unit,
                 "quantity": line.quantity,
@@ -64,24 +70,44 @@ def list_products(session: Session, actor: Actor) -> list[dict[str, Any]]:
                 "per_item_unit": None if per is None else per.quantize(Decimal("0.000001")),
             }
         )
-    return [
-        {
-            "id": p.id,
-            "name": p.name,
-            "is_active": p.is_active,
-            "sort_order": p.sort_order,
-            "recipe": lines.get(p.id, []),
-        }
-        for p in products
-    ]
+    out = []
+    for p in products:
+        recipe = lines.get(p.id, [])
+        known = [ln["cost"] for ln in recipe if ln["cost"] is not None]
+        cost = sum(known, Decimal("0")) if recipe else None
+        complete = bool(recipe) and len(known) == len(recipe)
+        out.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "is_active": p.is_active,
+                "sort_order": p.sort_order,
+                "price": p.price,
+                "recipe": recipe,
+                # cost of the priced lines; cost_complete is False when a line lacks a price
+                # or a unit conversion, so the ratio is a lower bound then.
+                "cost": cost,
+                "cost_complete": complete,
+                "food_cost_pct": (
+                    (cost * 100 / p.price).quantize(Decimal("0.1"), rounding=ROUND_HALF_EVEN)
+                    if cost is not None and p.price
+                    else None
+                ),
+            }
+        )
+    return out
 
 
-def create_product(session: Session, actor: Actor, name: str) -> MenuProduct:
+def create_product(
+    session: Session, actor: Actor, name: str, price: Decimal | None = None
+) -> MenuProduct:
     actor.require(Perm.ITEM_MANAGE)
     last = session.scalar(
         select(func.max(MenuProduct.sort_order)).where(MenuProduct.tenant_id == actor.tenant_id)
     )
-    p = MenuProduct(tenant_id=actor.tenant_id, name=name.strip(), sort_order=(last or 0) + 10)
+    p = MenuProduct(
+        tenant_id=actor.tenant_id, name=name.strip(), sort_order=(last or 0) + 10, price=price
+    )
     session.add(p)
     try:
         session.flush()
@@ -224,10 +250,17 @@ def load_default_menu(session: Session, actor: Actor, add_missing: bool) -> dict
         product = products.get(spec["name"])
         if product is None:
             last_p += 10
-            product = MenuProduct(tenant_id=actor.tenant_id, name=spec["name"], sort_order=last_p)
+            product = MenuProduct(
+                tenant_id=actor.tenant_id,
+                name=spec["name"],
+                sort_order=last_p,
+                price=Decimal(spec["price"]) if spec.get("price") else None,
+            )
             session.add(product)
             session.flush()
             added_products.append(product.name)
+        elif product.price is None and spec.get("price"):
+            product.price = Decimal(spec["price"])
         have = set(
             session.scalars(select(RecipeLine.item_id).where(RecipeLine.product_id == product.id))
         )
@@ -292,3 +325,62 @@ def recipe_usage(session: Session, tenant_id: uuid.UUID, count_id: uuid.UUID) ->
         total = sum((sales.get(pid, Decimal("0")) * per for pid, per in uses), Decimal("0"))
         usage[item_id] = total.quantize(Q3, rounding=ROUND_HALF_EVEN)
     return usage
+
+
+DEFAULT_SUPPLIER = Path(__file__).resolve().parent.parent / "data" / "taffburger_supplier.json"
+
+
+def apply_supplier_data(session: Session, actor: Actor, overwrite: bool) -> dict[str, Any]:
+    """Unit prices and package contents from the supplier price list. Without `overwrite`
+    only empty fields are filled, so prices the user entered are kept."""
+    actor.require(Perm.ITEM_MANAGE)
+    data = json.loads(DEFAULT_SUPPLIER.read_text(encoding="utf-8"))
+    items = {
+        i.name: i
+        for i in session.scalars(select(CountItem).where(CountItem.tenant_id == actor.tenant_id))
+    }
+    applied: list[dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
+    not_in_list: list[str] = []
+    for row in data["items"]:
+        item = items.get(row["item"])
+        if item is None:
+            not_in_list.append(row["item"])
+            continue
+        changes: dict[str, str] = {}
+        price = Decimal(row["unit_price"])
+        if item.unit_price != price and (item.unit_price is None or overwrite):
+            item.unit_price = price
+            changes["unit_price"] = row["unit_price"]
+        if row.get("content_qty"):
+            qty, unit = Decimal(row["content_qty"]), row["content_unit"]
+            if (item.content_qty, item.content_unit) != (qty, unit) and (
+                item.content_qty is None or overwrite
+            ):
+                item.content_qty, item.content_unit = qty, unit
+                changes["content"] = f"1 {item.unit} = {row['content_qty']} {unit}"
+        entry = {
+            "item": item.name,
+            "supplier": row["supplier"],
+            "confidence": row["confidence"],
+            "note": row.get("note"),
+            "changes": changes,
+        }
+        (applied if changes else kept).append(entry)
+    audit.record(
+        session,
+        actor,
+        "count_item.supplier_data",
+        "count_item",
+        None,
+        {"applied": len(applied), "overwrite": overwrite},
+    )
+    session.commit()
+    return {
+        "applied": applied,
+        "unchanged": kept,
+        "not_in_list": not_in_list,
+        "not_applied": data["not_applied"],
+        "not_in_count_list": data["not_in_count_list"],
+        "source": data["source"],
+    }

@@ -409,6 +409,31 @@ async function renderItems() {
     } }, el("datalist", { id: "groups" }, groups.map((x) => el("option", { value: x }))),
       el("label", {}, "Grup", g), el("label", { class: "grow" }, "Malzeme adı", n), el("label", {}, "Birim", u),
       el("label", {}, "Birim fiyat ₺", p), el("button", { type: "submit" }, "Ürün ekle")));
+    const CONF = { kesin: ["ok", "KESİN"], cikarim: ["warn", "ÇIKARIM"], tahmin: ["bad", "TAHMİN"] };
+    const applySupplier = async (overwrite) => {
+      if (overwrite && !confirm("Elle girdiğiniz birim fiyat ve paket içerikleri tedarikçi verisiyle değiştirilsin mi?")) return;
+      const res = await api("POST", `/count-items/apply-supplier-data${overwrite ? "?overwrite=true" : ""}`);
+      if (!res.ok) { message(res.error); return; }
+      const d = res.data;
+      await renderItems();
+      message(`Tedarikçi verisi: ${d.applied.length} üründe fiyat/paket bilgisi güncellendi, ${d.unchanged.length} ürün zaten güncel ya da elle girilmiş.`, "info");
+      const box = document.getElementById("supplier-report");
+      if (!box) return;
+      const row = (a) => [[a.item], [a.supplier, "wrap"], [Object.values(a.changes).join(" · ") || "—", "wrap"],
+        [el("span", { class: `badge ${CONF[a.confidence][0]}` }, CONF[a.confidence][1])], [a.note || "", "wrap"]];
+      box.replaceChildren(el("section", { class: "card" }, el("h2", {}, "Tedarikçi verisi raporu"), el("p", { class: "hint" }, d.source),
+        el("p", { class: "hint" }, "KESİN: paket ve fiyat kapsamı sitede yazıyor · ÇIKARIM: paket yazıyor, fiyatın kapsamı fiyat seviyesinden çıkarıldı · TAHMİN: eşleştirme ya da paket boyutu varsayım; kontrol edin."),
+        table([["Ürün"], ["Tedarikçi ürünü"], ["Yapılan"], ["Güven"], ["Not"]], [...d.applied, ...d.unchanged].map(row)),
+        el("details", {}, el("summary", {}, `Uygulanmayan ${d.not_applied.length} satır (bilgi eksik)`),
+          table([["Tedarikçi ürünü"], ["Fiyat", "num"], ["Neden"]], d.not_applied.map((x) => [[x.supplier, "wrap"], [x.supplier_price || "—", "num"], [x.reason, "wrap"]]))),
+        el("details", {}, el("summary", {}, `Sayım listesinde karşılığı olmayan ${d.not_in_count_list.rows.length} tedarikçi ürünü`),
+          el("p", { class: "hint" }, d.not_in_count_list.note),
+          table([["Tedarikçi ürünü"], ["Fiyat", "num"]], d.not_in_count_list.rows.map(([n, p]) => [[n, "wrap"], [p, "num"]]))),
+        el("p", {}, el("button", { type: "button", class: "danger", onclick: () => applySupplier(true) }, "Elle girilen değerlerin üzerine yaz"))));
+    };
+    children.push(el("div", { class: "card toolbar" }, el("span", { class: "grow" }, "Tedarikçi listesindeki (47 ürün) birim fiyat ve paket içeriği bilgileri hazır. Yalnızca boş alanlar doldurulur; sizin girdiğiniz değerler korunur."),
+      el("button", { type: "button", class: "secondary", onclick: () => applySupplier(false) }, "Tedarikçi fiyat ve paket bilgilerini uygula")));
+    children.push(el("div", { id: "supplier-report" }));
     if (r.data.length === 0) {
       children.push(el("div", { class: "card" }, el("p", {}, "Ürün listesi boş."),
         el("button", { type: "button", onclick: async () => {

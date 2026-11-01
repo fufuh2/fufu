@@ -21,6 +21,7 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 | Kapatma: tüm ürünler sayılmış ve "sayımı yapan" dolu olmalı; fiyatlar sabitlenir | `test_monthly_count.py` |
 | Excel: Beklenen/Fark/Fark ₺/Zayi ₺ gerçek formül; sütun-başlık kayması hata verir | `test_monthly_count.py` (Excel testi), `monthly_export.py` |
 | Reçete: menü satışı × reçete = "Satıştan"; GR→KG, ML→LT ve paket içeriği (1 ADET = 9,5 KG) çevrimi; kapatılan ay reçete değişince değişmez | `tests/integration/test_recipes.py`, `test_recipes_and_sales_through_ui` |
+| Tedarikçi verisi (47 fiyat, paket içeriği) ve burger maliyeti / oranı; elle girilen fiyat korunur | `test_supplier_prices_and_food_cost`, `docs/MALIYET_ANALIZI.md` |
 | Veritabanı taşıma: `copy-from-if-empty` tek transaction, boş hedef ve aynı şema şartı | `tests/integration/test_copy.py` |
 | Panel, ay listesi toplamları, ürün geçmişi, şubeler özeti; panel ay oluşturmaz | `tests/integration/test_reports.py` |
 | Roller ve şube kapsamı; tenant izolasyonu; kaldırılan uç noktalar 404 | `tests/integration/test_security.py` |

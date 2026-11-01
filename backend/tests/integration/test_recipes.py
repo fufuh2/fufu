@@ -193,7 +193,7 @@ def test_menu_boards_loaded(client, session: Session) -> None:
     before = sum(len(p["recipe"]) for p in products.values())
     r2 = api.post("/menu-products/load-defaults?add_missing_items=true").json()
     assert r2["added_products"] == [] and r2["missing_items"] == []
-    assert len(r2["added_items"]) == 17
+    assert len(r2["added_items"]) == 18 and "ÖZEL BBQ SOS" in r2["added_items"]
     after = sum(len(p["recipe"]) for p in api.get("/menu-products").json())
     assert after - before == r2["added_lines"] > 0
     assert api.post("/menu-products/load-defaults").json()["added_lines"] == 0
@@ -250,3 +250,41 @@ def test_menu_permissions_and_isolation(client, session: Session) -> None:
         {"item_id": items["YOUKİ SOS"], "quantity": "2", "unit": "GR"},
     ]
     assert owner.put(f"/menu-products/{pid}/recipe", {"lines": dup}).status_code == 422
+
+
+def test_supplier_prices_and_food_cost(client, session: Session) -> None:
+    api = new_tenant(session, client)
+    setup_branch(api)
+    api.post("/menu-products/load-defaults?add_missing_items=true")
+    items = _items(api)
+    api.patch(f"/count-items/{items['YOUKİ SOS']}", {"unit_price": "300"})  # user's own price
+    r = api.post("/count-items/apply-supplier-data").json()
+    applied = {a["item"]: a for a in r["applied"]}
+    assert applied["CHEDAR PEYNİRİ"]["changes"] == {
+        "unit_price": "505.00",
+        "content": "1 KG = 70 ADET",
+    }
+    assert applied["KOVA KETÇAP"]["changes"]["content"] == "1 ADET = 9 KG"
+    assert "YOUKİ SOS" not in applied  # an entered price is kept without overwrite
+    assert r["not_in_list"] == [] and r["not_in_count_list"]["rows"]
+    by_name = {i["name"]: i for i in api.get("/count-items").json()}
+    assert D(str(by_name["YOUKİ SOS"]["unit_price"])) == D("300")
+    r = api.post("/count-items/apply-supplier-data?overwrite=true").json()
+    assert {a["item"] for a in r["applied"]} == {"YOUKİ SOS"}
+    assert api.post("/count-items/apply-supplier-data").json()["applied"] == []
+
+    youki = next(p for p in api.get("/menu-products").json() if p["name"] == "YOUKI")
+    costs = {ln["item_name"]: ln["cost"] for ln in youki["recipe"]}
+    # 2 slices of 70/kg × 505; 75 g × 234.90; 75 g × 258.10; bun 16.50
+    assert D(str(costs["CHEDAR PEYNİRİ"])) == D("14.43")
+    assert D(str(costs["TRÜFLÜ MAYONEZ"])) == D("17.62")
+    assert D(str(costs["YOUKİ SOS"])) == D("19.36")
+    assert costs["DANA KIYMA"] is None and costs["KÜHNE ALMAN TURŞU"] is None
+    assert D(str(youki["cost"])) == D("67.91") and youki["cost_complete"] is False
+    assert D(str(youki["price"])) == D("610") and D(str(youki["food_cost_pct"])) == D("11.1")
+    pid = youki["id"]
+    assert api.patch(f"/menu-products/{pid}", {"price": "650"}).json()["price"] in (
+        "650",
+        "650.00",
+        650,
+    )

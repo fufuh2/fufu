@@ -151,6 +151,12 @@ def list_menu_products(actor: ActorDep, session: SessionDep) -> Any:
     return menu.list_products(session, actor)
 
 
+@router.post("/count-items/apply-supplier-data")
+def apply_supplier_data(actor: ActorDep, session: SessionDep, overwrite: bool = False) -> Any:
+    """Prices and package contents from the supplier list; overwrite replaces entered values."""
+    return menu.apply_supplier_data(session, actor, overwrite)
+
+
 @router.post("/menu-products/load-defaults")
 def load_default_menu(actor: ActorDep, session: SessionDep, add_missing_items: bool = False) -> Any:
     """Taff Burger menu boards; add_missing_items also adds ingredients missing from the list."""
@@ -159,8 +165,14 @@ def load_default_menu(actor: ActorDep, session: SessionDep, add_missing_items: b
 
 @router.post("/menu-products", status_code=201)
 def create_menu_product(body: s.MenuProductIn, actor: ActorDep, session: SessionDep) -> Any:
-    p = menu.create_product(session, actor, body.name)
-    return {"id": p.id, "name": p.name, "is_active": p.is_active, "sort_order": p.sort_order}
+    p = menu.create_product(session, actor, body.name, body.price)
+    return {
+        "id": p.id,
+        "name": p.name,
+        "is_active": p.is_active,
+        "sort_order": p.sort_order,
+        "price": p.price,
+    }
 
 
 @router.patch("/menu-products/{product_id}")
@@ -168,7 +180,13 @@ def update_menu_product(
     product_id: uuid.UUID, body: s.MenuProductPatch, actor: ActorDep, session: SessionDep
 ) -> Any:
     p = menu.update_product(session, actor, product_id, body.model_dump(exclude_unset=True))
-    return {"id": p.id, "name": p.name, "is_active": p.is_active, "sort_order": p.sort_order}
+    return {
+        "id": p.id,
+        "name": p.name,
+        "is_active": p.is_active,
+        "sort_order": p.sort_order,
+        "price": p.price,
+    }
 
 
 @router.put("/menu-products/{product_id}/recipe")

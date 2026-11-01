@@ -1,0 +1,625 @@
+{
+ "source": "Tedarikçi sipariş sitesi ekran görüntüleri, 2026-11-01. Fiyatlar sitede yazdığı gibi; KDV dahil/hariç olduğu sitede yazmıyor.",
+ "confidence_legend": {
+  "kesin": "Paket boyutu ve fiyatın neyi kapsadığı sitede açıkça yazıyor.",
+  "cikarim": "Paket boyutu yazıyor; fiyatın tek paket mi koli mi olduğu fiyat seviyesinden çıkarıldı.",
+  "tahmin": "Sayım listesindeki ürünle eşleştirme tahmin."
+ },
+ "items": [
+  {
+   "item": "CHEDAR PEYNİRİ",
+   "supplier": "TÜRKOVA TAM YAĞLI ERİTME BURGER PEYNİRİ 1000G 70DİLİM KOLİ İÇİ 9",
+   "supplier_price": "4545.00",
+   "pack": "1 koli = 9 × 1 kg (70 dilim/kg)",
+   "unit_price": "505.00",
+   "content_qty": "70",
+   "content_unit": "ADET",
+   "confidence": "kesin",
+   "note": "Sitede '1 KOLİ FİYATIDIR'. 1 dilim ≈ 14,3 gr."
+  },
+  {
+   "item": "TOP DOWN HARDAL",
+   "supplier": "Hardal Mild 445 Gr X 10 Ad",
+   "supplier_price": "1727.24",
+   "pack": "10 şişe × 445 gr",
+   "unit_price": "172.72",
+   "content_qty": "0.445",
+   "content_unit": "KG",
+   "confidence": "cikarim",
+   "note": "Fiyat 10'lu paket kabul edildi."
+  },
+  {
+   "item": "TOP DOWN KETÇAP",
+   "supplier": "Ketçap Top Down 460 Gr X 10 AD",
+   "supplier_price": "847.40",
+   "pack": "10 şişe × 460 gr",
+   "unit_price": "84.74",
+   "content_qty": "0.46",
+   "content_unit": "KG",
+   "confidence": "cikarim",
+   "note": "Fiyat 10'lu paket kabul edildi."
+  },
+  {
+   "item": "TOP DOWN MAYONEZ",
+   "supplier": "MAYONEZ TOP DOWN 400GR*10AD",
+   "supplier_price": "1169.64",
+   "pack": "10 şişe × 400 gr",
+   "unit_price": "116.96",
+   "content_qty": "0.4",
+   "content_unit": "KG",
+   "confidence": "cikarim",
+   "note": "Fiyat 10'lu paket kabul edildi."
+  },
+  {
+   "item": "KOVA KETÇAP",
+   "supplier": "Kova Ketçap (Kraft) 9 Kg X 2 Ad",
+   "supplier_price": "1803.92",
+   "pack": "2 kova × 9 kg",
+   "unit_price": "901.96",
+   "content_qty": "9",
+   "content_unit": "KG",
+   "confidence": "kesin",
+   "note": "Sitede '2 ADET FİYATIDIR'."
+  },
+  {
+   "item": "KOVA MAYONEZ",
+   "supplier": "Kova Mayonez (Kraft) 8 Kg X 2 Ad",
+   "supplier_price": "2463.05",
+   "pack": "2 kova × 8 kg",
+   "unit_price": "1231.53",
+   "content_qty": "8",
+   "content_unit": "KG",
+   "confidence": "kesin",
+   "note": "Sitede '2 ADET FİYATIDIR'."
+  },
+  {
+   "item": "BBO SOS",
+   "supplier": "Hp Klasik Bbq Sos 465 Gr X 8 AD",
+   "supplier_price": "950.00",
+   "pack": "8 şişe × 465 gr",
+   "unit_price": "118.75",
+   "content_qty": "0.465",
+   "content_unit": "KG",
+   "confidence": "tahmin",
+   "note": "BBO SOS = HP BBQ şişe kabul edildi; Kova Barbekü (Kraft) 5 kg 1182,36 da olabilir."
+  },
+  {
+   "item": "HAMBURGER EKMEĞİ",
+   "supplier": "80 Gr. Sade Sütlü Yumurtalı Hamburger Ekmeği",
+   "supplier_price": "16.50",
+   "pack": "1 adet",
+   "unit_price": "16.50",
+   "confidence": "cikarim",
+   "note": "Fiyat adet başı kabul edildi."
+  },
+  {
+   "item": "DANA FÜME",
+   "supplier": "TAFF BURGER FÜME DANA BACON BURGER (DİLİMLİ 250GR)",
+   "supplier_price": "495.00",
+   "pack": "250 gr",
+   "unit_price": "1980.00",
+   "confidence": "kesin",
+   "note": "495 / 0,25 kg."
+  },
+  {
+   "item": "SOĞAN KITIRI",
+   "supplier": "MAMAZİTAS ÇITIR SOĞAN 1KG",
+   "supplier_price": "622.36",
+   "pack": "1 kg",
+   "unit_price": "622.36",
+   "confidence": "kesin"
+  },
+  {
+   "item": "HALKA TURŞU",
+   "supplier": "AYSAN (RONDEL) HALKA KESİM TURŞU (1KG)",
+   "supplier_price": "72.50",
+   "pack": "1 kg",
+   "unit_price": "72.50",
+   "confidence": "kesin",
+   "note": "Sitede geçici olarak satışa kapalı. Dilim ağırlığı yazmıyor: reçetedeki '4 adet' için 1 KG = ? ADET girilmeli."
+  },
+  {
+   "item": "KÜP TURŞU",
+   "supplier": "AYSAN KÜP KESİM SALATALIK TURŞU (1 KG)",
+   "supplier_price": "72.50",
+   "pack": "1 kg",
+   "unit_price": "72.50",
+   "confidence": "kesin"
+  },
+  {
+   "item": "KÜHNE ALMAN TURŞU",
+   "supplier": "KÜHNE SALATALIK TURŞU ALMAN GEWURZGURKEN 2.55",
+   "supplier_price": "785.24",
+   "pack": "2,55 (kg kabul edildi)",
+   "unit_price": "307.94",
+   "confidence": "cikarim",
+   "note": "'2.55' birimi yazmıyor; kg kabul edildi. Adet ağırlığı yazmıyor."
+  },
+  {
+   "item": "PARMESAN PEYNİRİ",
+   "supplier": "GRANA PADANO PARMESAN 1KG",
+   "supplier_price": "1795.75",
+   "pack": "1 kg",
+   "unit_price": "1795.75",
+   "confidence": "kesin"
+  },
+  {
+   "item": "TEREYAĞI",
+   "supplier": "GÜNDOĞDU TEREYAĞ SİLİNDİR 700 GR.",
+   "supplier_price": "549.85",
+   "pack": "700 gr",
+   "unit_price": "785.50",
+   "confidence": "kesin"
+  },
+  {
+   "item": "TRÜF YAĞI",
+   "supplier": "TURCO TRÜF MANTAR YAĞ BEYAZ 250 ML 1 ADET",
+   "supplier_price": "721.62",
+   "pack": "250 ml",
+   "unit_price": "2886.48",
+   "confidence": "kesin"
+  },
+  {
+   "item": "CAJUN BAHARAT",
+   "supplier": "CAJUN BAHARATI ARİFOĞLU 600GR*12",
+   "supplier_price": "388.50",
+   "pack": "600 gr (koli 12)",
+   "unit_price": "647.50",
+   "confidence": "cikarim",
+   "note": "Fiyat tek 600 gr paket kabul edildi."
+  },
+  {
+   "item": "ET BAHARATI",
+   "supplier": "KÖFTE BAHARATI (1kg)",
+   "supplier_price": "2000.00",
+   "pack": "1 kg",
+   "unit_price": "2000.00",
+   "confidence": "tahmin",
+   "note": "ET BAHARATI = köfte baharatı kabul edildi."
+  },
+  {
+   "item": "YOUKİ SOS",
+   "supplier": "TAFF YUKİ SOS",
+   "supplier_price": "258.10",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "258.10",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "TRÜFLÜ MAYONEZ",
+   "supplier": "TAFF TRUFFLE SOS",
+   "supplier_price": "234.90",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "234.90",
+   "confidence": "tahmin",
+   "note": "Menüdeki 'trüflü/trüf mayonez' = TAFF TRUFFLE SOS kabul edildi."
+  },
+  {
+   "item": "DİPLOMAT SOS",
+   "supplier": "TAFF DİPLOMAT SOS",
+   "supplier_price": "309.14",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "309.14",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "COY SOS",
+   "supplier": "TAFF COY SOS",
+   "supplier_price": "203.58",
+   "pack": "1 kg",
+   "unit_price": "203.58",
+   "confidence": "kesin",
+   "note": "Sitede '1 KG'LIK FİYATIDIR'."
+  },
+  {
+   "item": "FAKE DONALD'S SOS",
+   "supplier": "TAFF FEYK SOS",
+   "supplier_price": "230.26",
+   "pack": "1 kg",
+   "unit_price": "230.26",
+   "confidence": "kesin",
+   "note": "Sitede '1 KG'LIK FİYATIDIR'."
+  },
+  {
+   "item": "LİLLY SOS",
+   "supplier": "TAFF VİŞNE SOS",
+   "supplier_price": "271.44",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "271.44",
+   "confidence": "tahmin",
+   "note": "Menüde 'Vişneli Lilly Sos'. Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "KEÇİ BÜŞÜ KREMASI",
+   "supplier": "TAFF KEÇİBÜS SOS",
+   "supplier_price": "486.62",
+   "pack": "1 kg",
+   "unit_price": "486.62",
+   "confidence": "kesin",
+   "note": "Sitede '1 KG'LIK FİYATIDIR'."
+  },
+  {
+   "item": "DYNAMITE SOS",
+   "supplier": "TAFF DYNAMITE SOS",
+   "supplier_price": "251.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "251.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "SEUL SOS",
+   "supplier": "TAFF SEOUL SOS",
+   "supplier_price": "250.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "250.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "MEXICAN SOS",
+   "supplier": "TAFF MEKSİKAN SOS",
+   "supplier_price": "252.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "252.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "BACON JAM SOS",
+   "supplier": "TAFF BEEF BACON JAM SOS",
+   "supplier_price": "385.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "385.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "TSO SOS",
+   "supplier": "TAFF TSO SOS",
+   "supplier_price": "239.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "239.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "PARMESAN GARLIC SOS",
+   "supplier": "TAFF PARMESAN GARLIC SOS",
+   "supplier_price": "253.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "253.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "TAHİN SOS",
+   "supplier": "TAFF TAHİN SOS",
+   "supplier_price": "241.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "241.00",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "ÖZEL BBQ SOS",
+   "supplier": "TAFF ÖZEL BBQ SOS",
+   "supplier_price": "248.00",
+   "pack": "1 kg kabul edildi",
+   "unit_price": "248.00",
+   "confidence": "tahmin",
+   "note": "Nash ve Taff Chicken'daki 'Özel Barbekü Sos'. Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "JALAPENO BİBERİ",
+   "supplier": "AYSAN JALAPENO TURŞUSU 5KG",
+   "supplier_price": "412.50",
+   "pack": "5 kg",
+   "unit_price": "82.50",
+   "confidence": "kesin"
+  },
+  {
+   "item": "FALAFEL",
+   "supplier": "TAFF FALAFEL (1ADET)",
+   "supplier_price": "54.00",
+   "pack": "1 adet",
+   "unit_price": "54.00",
+   "confidence": "kesin"
+  },
+  {
+   "item": "MÜCVER",
+   "supplier": "TAFF MÜCVER (1ADET)",
+   "supplier_price": "49.00",
+   "pack": "1 adet",
+   "unit_price": "49.00",
+   "confidence": "kesin"
+  },
+  {
+   "item": "TEPSİ KAĞIDI",
+   "supplier": "TAFF BURGER TEPSİ KAĞIDI 24*33 1KG",
+   "supplier_price": "273.00",
+   "pack": "1 kg",
+   "unit_price": "273.00",
+   "confidence": "kesin"
+  },
+  {
+   "item": "ÇAMAŞIR SUYU",
+   "supplier": "TAFF BURGER ÇAMAŞIR SUYU 5KG",
+   "supplier_price": "214.50",
+   "pack": "5 kg",
+   "unit_price": "42.90",
+   "confidence": "kesin"
+  },
+  {
+   "item": "BULAŞIK DETERJANI",
+   "supplier": "TAFF BURGER ELDE BULAŞIK DETERJANI 5 KG",
+   "supplier_price": "192.00",
+   "pack": "5 kg",
+   "unit_price": "38.40",
+   "confidence": "kesin"
+  },
+  {
+   "item": "YÜZEY TEMİZLEYİCİSİ",
+   "supplier": "TAFF BURGER YÜZEY TEMİZLEME 5 KG.",
+   "supplier_price": "212.50",
+   "pack": "5 kg",
+   "unit_price": "42.50",
+   "confidence": "kesin"
+  },
+  {
+   "item": "WC SIVI SABUN",
+   "supplier": "TAFF BURGER SIVI EL SABUNU 5 KG.",
+   "supplier_price": "221.00",
+   "pack": "5 kg bidon",
+   "unit_price": "221.00",
+   "confidence": "tahmin",
+   "note": "Sayımdaki 1 ADET = 5 kg bidon kabul edildi."
+  },
+  {
+   "item": "TEKLİ BURGER KUTUSU",
+   "supplier": "TAFF BURGER TEKLİ HAMBURGER KUTUSU",
+   "supplier_price": "6.13",
+   "pack": "1 adet",
+   "unit_price": "6.13",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "COMBO BURGER KUTUSU",
+   "supplier": "TAFF BURGER KOMBO KUTU",
+   "supplier_price": "7.25",
+   "pack": "1 adet",
+   "unit_price": "7.25",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "ATIŞTIRMALIK KUTU",
+   "supplier": "TAFF BURGER YAN ÜRÜN KUTUSU",
+   "supplier_price": "5.12",
+   "pack": "1 adet",
+   "unit_price": "5.12",
+   "confidence": "tahmin"
+  },
+  {
+   "item": "KRAFT ÇANTA",
+   "supplier": "TAFF BURGER KRAFT ÇANTA BURGU SAPLI 28*16",
+   "supplier_price": "11.20",
+   "pack": "1 adet",
+   "unit_price": "11.20",
+   "confidence": "tahmin",
+   "note": "Sitede paket boyutu yok; fiyat 1 kg / 1 adet kabul edildi."
+  },
+  {
+   "item": "KRAFT POŞET",
+   "supplier": "TAFF BURGER TAŞIMA KRAFT TORBA",
+   "supplier_price": "11.20",
+   "pack": "1 adet",
+   "unit_price": "11.20",
+   "confidence": "tahmin"
+  },
+  {
+   "item": "PİPET",
+   "supplier": "POŞET SARGILI FROZEN PİPET SİYAH 100'LÜ",
+   "supplier_price": "145.00",
+   "pack": "100'lü paket",
+   "unit_price": "145.00",
+   "confidence": "cikarim"
+  }
+ ],
+ "not_applied": [
+  {
+   "supplier": "TAFF TAVUK BURGER ETİ",
+   "supplier_price": "295.00",
+   "reason": "Paket boyutu yazmıyor; KAPLAMALI TAVUK için fiyat girilmedi."
+  },
+  {
+   "supplier": "HAMBURGER KÖFTE",
+   "supplier_price": "970.00",
+   "reason": "Paket boyutu yazmıyor; sayımda DANA KIYMA var, hazır köfte mi kullanıldığı bilinmiyor."
+  },
+  {
+   "supplier": "KARAMELİZE SOĞAN",
+   "supplier_price": "195.65",
+   "reason": "Paket boyutu yazmıyor. Menüdeki karamelize soğan için ayrı ürün; FAKE SOĞANI ile aynı mı bilinmiyor."
+  },
+  {
+   "supplier": "SOĞAN TURŞUSU",
+   "supplier_price": "216.72",
+   "reason": "Paket boyutu yazmıyor."
+  },
+  {
+   "supplier": "AYSAN SALATALIK TURŞU SALATALIK NO 3",
+   "supplier_price": "72.50",
+   "reason": "Paket boyutu yazmıyor; menüdeki salatalık turşusu bu da olabilir."
+  },
+  {
+   "supplier": "HEINZ KETÇAP STICK 9 GR x 1000'Lİ",
+   "supplier_price": "2180.00",
+   "reason": "Sayımdaki SACHET KETÇAP 1 ADET'in stick mi koli mi olduğu bilinmiyor."
+  },
+  {
+   "supplier": "HEINZ MAYONEZ STICK 9 GR x 504'LÜ",
+   "supplier_price": "1612.80",
+   "reason": "Sayımdaki SACHET MAYONEZ 1 ADET'in stick mi koli mi olduğu bilinmiyor."
+  },
+  {
+   "supplier": "ACI SOS KÜVET 20 GR x 120 Ad / HEİNZ",
+   "supplier_price": "467.26",
+   "reason": "Sayımdaki ACI SOS 1 ADET'in küvet mi koli mi olduğu bilinmiyor."
+  },
+  {
+   "supplier": "Kova Barbekü (Kraft) 5 Kg X 1 Ad",
+   "supplier_price": "1182.36",
+   "reason": "BBO SOS için HP BBQ şişe kullanıldı; kova kullanılıyorsa değiştirin."
+  },
+  {
+   "supplier": "TAFF TAVUK BURGER SARMA KAĞIDI 35*40 (10KG)",
+   "supplier_price": "2710.00",
+   "reason": "Sayımdaki SARMA KAĞIDI ADET; 10 kg pakette kaç yaprak olduğu yazmıyor."
+  },
+  {
+   "supplier": "TAFF KÖFTE BURGER SARMA KAĞIDI 35*40 (10KG)",
+   "supplier_price": "2710.00",
+   "reason": "Aynı sebep; sitede geçici olarak satışa kapalı."
+  },
+  {
+   "supplier": "TAFF BURGER BASKILI GARSON KATLAMA PEÇETE 33X33 (1 KOLİ)",
+   "supplier_price": "1810.00",
+   "reason": "Sayımda PKT; kolide kaç paket olduğu yazmıyor."
+  },
+  {
+   "supplier": "RULO YAZAR KASA FİŞ 10LU BÜYÜK / KÜÇÜK",
+   "supplier_price": "105.00",
+   "reason": "POS RULOSU / YAZICI RULOSU hangisinin büyük, hangisinin küçük olduğu bilinmiyor."
+  },
+  {
+   "supplier": "ROYALE SOS",
+   "supplier_price": null,
+   "reason": "Tedarikçi listesinde görülmedi."
+  }
+ ],
+ "not_in_count_list": {
+  "note": "Tedarikçide var, sayım listesinde karşılığı yok. Sayılmak isteniyorsa Ürün Listesi'ne eklenmeli.",
+  "rows": [
+   [
+    "TAFF BURGER SOS",
+    "247.00"
+   ],
+   [
+    "TAFF CHEDDAR SOS",
+    "335.00"
+   ],
+   [
+    "Kova Hardal (Kraft) 5 Kg X 1 Ad",
+    "1342.42"
+   ],
+   [
+    "UNI-EAGLE SRIRACHA ACI BİBER SOSU 815 GR",
+    "315.55"
+   ],
+   [
+    "ACILI MAYONEZ KÜVET 20 GR x 120 Ad / HEİNZ",
+    "781.50"
+   ],
+   [
+    "SARIMSAKLI MAYONEZ KÜVET 20 GR x 120 Ad / HEİNZ",
+    "696.54"
+   ],
+   [
+    "TAFF BURGER CİPS KUTUSU",
+    "4.12"
+   ],
+   [
+    "TAFF BURGER ISLAK MENDİL",
+    "2.10"
+   ],
+   [
+    "TAFF BURGER ALKOL BAZLI HİJYENİK TEMİZLEYİCİ VELOX 1 LT",
+    "275.00"
+   ],
+   [
+    "TAFF BURGER CAM VE SERT YÜZEY TEMİZLEYİCİ 1 KG",
+    "82.00"
+   ],
+   [
+    "TAFF BURGER KULL HAZ FIRIN IZGARA TEMİZLEME DETERJANI 5LT",
+    "1175.00"
+   ],
+   [
+    "TAFF ONION RING (SOĞAN)",
+    "72.00"
+   ],
+   [
+    "TAFF ONION CHIPS (SOĞAN)",
+    "72.00"
+   ],
+   [
+    "TAFF COLESLAW",
+    "84.00"
+   ],
+   [
+    "TAFF MOR SLAW",
+    "91.00"
+   ],
+   [
+    "TAFF CRISPY CHESSE",
+    "40.00"
+   ],
+   [
+    "TAFF MAC AND CHEESE TOPLARI",
+    "8.69"
+   ],
+   [
+    "TAFF BONELESS CHICKEN",
+    "295.00"
+   ],
+   [
+    "TAFF CHICKEN TENDERS",
+    "295.00"
+   ],
+   [
+    "TAFF ARA KAPLAMA (1 ADET 3KG)",
+    "518.00"
+   ],
+   [
+    "TAFF SUPPA ÇITIR KAPLAMA (1 ADET 3KG)",
+    "575.00"
+   ],
+   [
+    "TAFF SOĞAN PANE HARCI",
+    "205.00"
+   ],
+   [
+    "TAFF MISIR",
+    "37.00"
+   ],
+   [
+    "TAFF SHICHIMI BAHARATI",
+    "510.00"
+   ],
+   [
+    "KİNG CROW SHİCHİMİ TOGARASHİ 250 GR",
+    "625.48"
+   ],
+   [
+    "BİNOT KARABİBER",
+    "522.00"
+   ],
+   [
+    "BİNOT KIRMIZI TOZ BİBER",
+    "389.75"
+   ],
+   [
+    "BİNOT KÖRİ",
+    "345.00"
+   ],
+   [
+    "DENİZ TUZU 250 GR MALDON",
+    "345.00"
+   ]
+  ]
+ }
+}

@@ -24,6 +24,7 @@ async function renderMenu() {
       const unit = el("select", { disabled: !manage, "aria-label": `${p.name} birim ${n}` }, RECIPE_UNITS.map((u) => el("option", { value: u, selected: u === l.unit }, u)));
       const remove = manage ? el("button", { type: "button", class: "danger", onclick: () => { lines.splice(lines.indexOf(rec), 1); tr.remove(); } }, "Sil") : "";
       const tr = el("tr", {}, el("td", {}, item), el("td", { class: "num" }, qty), el("td", {}, unit),
+        el("td", { class: "num" }, l.cost === undefined ? "" : showMoney(l.cost)),
         el("td", { class: l.per_item_unit === null ? "warn-cell" : "hint" },
           l.per_item_unit === undefined ? "" : l.per_item_unit === null
             ? `düşülmüyor: ${l.item_unit} ↔ ${l.unit} çevrimi yok — Ürün Listesi'nde paket içeriği girin (1 ${l.item_unit} = ? ${l.unit === "ADET" ? "ADET" : l.unit})`
@@ -35,6 +36,12 @@ async function renderMenu() {
     p.recipe.forEach(addLine);
     if (!p.recipe.length && manage) addLine();
     const name = el("input", { value: p.name, maxlength: 200, disabled: !manage, "aria-label": "Menü ürünü adı" });
+    const price = el("input", { inputmode: "decimal", class: "qty", value: p.price === null ? "" : numForInput(p.price), disabled: !manage, "aria-label": `${p.name} satış fiyatı` });
+    price.addEventListener("change", async () => {
+      const v = parseDecimal(price.value, 2, 7);
+      price.classList.toggle("invalid", v === undefined);
+      if (v !== undefined && (await patch({ price: v }))) renderMenu();
+    });
     const active = el("input", { type: "checkbox", checked: p.is_active, disabled: !manage, "aria-label": `${p.name} aktif` });
     const patch = async (fields) => {
       const r = await api("PATCH", `/menu-products/${p.id}`, fields);
@@ -58,8 +65,11 @@ async function renderMenu() {
       message(`${p.name} reçetesi kaydedildi (${out.length} malzeme). Taslak aylar yeniden hesaplanır.`, "info");
     } }, "Reçeteyi kaydet");
     return el("section", { class: "card recipe-card" },
-      el("div", { class: "toolbar" }, el("label", { class: "grow" }, "Menü ürünü", name), el("label", { class: "check" }, active, "Aktif (satış girişinde görünür)")),
-      el("div", { class: "table-wrap" }, el("table", {}, el("thead", {}, el("tr", {}, ["Malzeme", "1 adet için miktar", "Birim", "", ""].map((h, i) => el("th", { scope: "col", class: i === 1 ? "num" : "" }, h)))), body)),
+      el("div", { class: "toolbar" }, el("label", { class: "grow" }, "Menü ürünü", name), el("label", {}, "Satış fiyatı ₺", price),
+        el("div", { class: "kpi" }, el("div", { class: "l" }, "Malzeme maliyeti"), el("div", { class: "v" }, showMoney(p.cost)),
+          el("div", { class: "s" }, p.food_cost_pct === null ? "fiyat yok" : `%${showQty(p.food_cost_pct)} maliyet oranı${p.cost_complete ? "" : " (eksik satır var, en az)"}`)),
+        el("label", { class: "check" }, active, "Aktif (satış girişinde görünür)")),
+      el("div", { class: "table-wrap" }, el("table", {}, el("thead", {}, el("tr", {}, ["Malzeme", "1 adet için miktar", "Birim", "Maliyet ₺", "", ""].map((h, i) => el("th", { scope: "col", class: i === 1 || i === 3 ? "num" : "" }, h)))), body)),
       manage ? el("div", { class: "toolbar" }, el("button", { type: "button", class: "secondary", onclick: () => addLine() }, "Malzeme ekle"), saveBtn) : null);
   }
 
@@ -103,6 +113,18 @@ async function renderMenu() {
       el("button", { type: "button", class: "secondary", onclick: () => loadDefaults(false) }, "Taff Burger menüsünü yükle")));
   }
   parts.push(el("div", { id: "menu-report" }));
+  if (prods.data.length) {
+    const rows = [...prods.data].sort((a, b) => Number(b.food_cost_pct || 0) - Number(a.food_cost_pct || 0)).map((p) => {
+      const missing = p.recipe.filter((l) => l.cost === null).map((l) => l.item_name);
+      return [[p.name], [showMoney(p.price), "num"], [showMoney(p.cost), "num"],
+        [p.food_cost_pct === null ? "—" : `%${showQty(p.food_cost_pct)}`, `num strong ${Number(p.food_cost_pct) > 35 ? "neg" : ""}`],
+        [p.price !== null && p.cost !== null ? showMoney(Number(p.price) - Number(p.cost)) : "—", "num"],
+        [missing.length ? `${missing.length}: ${missing.join(", ")}` : "tam", missing.length ? "wrap warn-cell" : "pos"]];
+    });
+    parts.push(el("section", { class: "card" }, el("h2", {}, "Maliyet özeti"),
+      el("p", { class: "hint" }, "Malzeme maliyeti = reçete × Ürün Listesi'ndeki birim fiyat. Fiyatı veya çevrimi eksik satırlar toplama girmez; o ürünlerde oran gerçekte daha yüksektir. Satış fiyatı menü panosundan, KDV dahil varsayıldı; tedarikçi fiyatlarının KDV durumu bilinmiyor."),
+      table([["Ürün"], ["Satış ₺", "num"], ["Maliyet ₺", "num"], ["Oran", "num"], ["Brüt kâr ₺", "num"], ["Maliyeti eksik malzeme"]], rows)));
+  }
   if (!prods.data.length) parts.push(el("p", { class: "empty" }, "Henüz menü ürünü yok."));
   parts.push(...prods.data.map(productCard));
   main().replaceChildren(...parts);

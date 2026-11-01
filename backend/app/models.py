@@ -206,7 +206,10 @@ class MenuProduct(Base):
     """Something sold (a burger, a menu); its recipe says what it uses from the count list."""
 
     __tablename__ = "menu_products"
-    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name"),
+        CheckConstraint("price IS NULL OR price >= 0", name="ck_menu_product_price"),
+    )
     id: Mapped[uuid.UUID] = _uuid()
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id"), nullable=False, index=True
@@ -214,6 +217,8 @@ class MenuProduct(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Menu (sales) price, used for the food cost ratio.
+    price: Mapped[Decimal | None] = mapped_column(MONEY)
     created_at: Mapped[datetime] = _now()
 
 
