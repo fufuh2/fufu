@@ -11,35 +11,36 @@ ve bölme hesapları doğru çıktı. Güven etiketleri o kontrolden sonra düze
    (cheddar 1 KG = 70 dilim, kova ketçap 9 kg, kova mayonez 8 kg, top down şişeler…). Elle girilen değerler korunur.
 3. **Menü & Reçeteler → Maliyet özeti**: her burgerin malzeme maliyeti, satış fiyatına oranı, brüt kârı.
 
-## Bugünkü veriyle maliyet oranı (alt sınır)
-Eksik sütunundaki malzemelerin fiyatı ya da çevrimi yok; gerçek oran bundan **yüksektir**.
-En büyük eksik **DANA KIYMA** (her et burgerde 150 gr) ve **KAPLAMALI TAVUK** (120 gr): tedarikçi listesinde
-paket boyutu yazmıyor (HAMBURGER KÖFTE 970 ₺, TAFF TAVUK BURGER ETİ 295 ₺).
+## Maliyet oranı (2026-11-01)
+Köfte (HAMBURGER KÖFTE 970 ₺/kg) ve tavuk burger eti (295 ₺/kg) paketlerinin 1 kg olduğu işletme sahibince
+doğrulandı. "Eksik" sütunundaki malzemelerin fiyatı ya da çevrimi hâlâ yok; o ürünlerde gerçek oran biraz daha yüksektir.
 
-| Burger | Satış ₺ | Bilinen maliyet ₺ | Oran | Maliyeti eksik |
-|---|---:|---:|---:|---|
-| NASH | 450 | 191,03 | %42,5 | kaplamalı tavuk |
-| DIPLOMAT | 640 | 176,30 | %27,5 | dana kıyma, Doritos |
-| NOUR | 390 | 106,65 | %27,3 | fake soğanı |
-| PUMPKIN CARROT | 390 | 88,59 | %22,7 | iceberg |
-| SEUL | 430 | 92,40 | %21,5 | kaplamalı tavuk |
-| LILLY | 610 | 124,28 | %20,4 | dana kıyma, soğan turşusu |
-| CHEESE TAO | 410 | 62,43 | %15,2 | kaplamalı tavuk, iceberg, halka turşu |
-| TAFF CHICKEN | 410 | 60,91 | %14,9 | kaplamalı tavuk |
-| NORI | 610 | 84,06 | %13,8 | dana kıyma |
-| OVERDOSE | 440 | 59,56 | %13,5 | kaplamalı tavuk, iceberg |
-| CHEESE BURGER | 560 | 73,86 | %13,2 | dana kıyma, salatalık turşusu |
-| SHOGUN | 420 | 54,45 | %13,0 | iceberg, kuru soğan, halka turşu |
-| COY | 630 | 80,14 | %12,7 | dana kıyma |
-| EL TORATO | 610 | 69,47 | %11,4 | dana kıyma |
-| YOUKI | 610 | 67,91 | %11,1 | dana kıyma, salatalık turşusu |
-| FAKE DONALD'S | 610 | 65,47 | %10,7 | dana kıyma, iceberg, salatalık turşusu, fake soğanı |
-| TRUFFLE | 630 | 66,17 | %10,5 | dana kıyma, iceberg, salatalık turşusu |
-| ROYALE | 900 | 67,02 | %7,4 | dana kıyma, Royale sos |
-| BALANCE | 590 | 25,30 | %4,3 | dana kıyma, iceberg, kırmızı soğan, domates |
+| Burger | Satış ₺ | Malzeme maliyeti ₺ | Oran | Brüt kâr ₺ | Maliyeti eksik |
+|---|---:|---:|---:|---:|---|
+| NASH | 450 | 226,43 | %50,3 | 223,57 | — |
+| DIPLOMAT | 640 | 321,80 | %50,3 | 318,20 | Doritos |
+| LILLY | 610 | 269,78 | %44,2 | 340,22 | soğan turşusu |
+| CHEESE BURGER | 560 | 219,36 | %39,2 | 340,64 | salatalık turşusu |
+| NORI | 610 | 229,56 | %37,6 | 380,44 | — |
+| COY | 630 | 225,64 | %35,8 | 404,36 | — |
+| EL TORATO | 610 | 214,97 | %35,2 | 395,03 | — |
+| YOUKI | 610 | 213,41 | %35,0 | 396,59 | salatalık turşusu |
+| FAKE DONALD'S | 610 | 210,97 | %34,6 | 399,03 | iceberg, salatalık turşusu, fake soğanı |
+| TRUFFLE | 630 | 211,67 | %33,6 | 418,33 | iceberg, salatalık turşusu |
+| ROYALE | 900 | 285,27 | %31,7 | 614,73 | Royale sos |
+| SEUL | 430 | 127,80 | %29,7 | 302,20 | — |
+| BALANCE | 590 | 170,80 | %28,9 | 419,20 | iceberg, kırmızı soğan, domates |
+| NOUR | 390 | 106,65 | %27,3 | 283,35 | fake soğanı |
+| CHEESE TAO | 410 | 97,83 | %23,9 | 312,17 | iceberg, halka turşu |
+| TAFF CHICKEN | 410 | 96,31 | %23,5 | 313,69 | — |
+| PUMPKIN CARROT | 390 | 88,59 | %22,7 | 301,41 | iceberg |
+| OVERDOSE | 440 | 94,96 | %21,6 | 345,04 | iceberg |
+| SHOGUN | 420 | 54,45 | %13,0 | 365,55 | iceberg, kuru soğan, halka turşu (tavuk menüde yazmıyor) |
 
-Gözlem: Nash ve Diplomat'ta 50 gr dana füme tek başına ≈99 ₺ (250 gr paket 495 ₺ → 1.980 ₺/kg).
-Nash'te 150 gr özel BBQ (37 ₺) ve 50 gr soğan kıtırı (31 ₺) eklenince, tavuk hariç bile oran %42.
+Gözlemler:
+- 150 gr köfte tek başına 145,50 ₺; et burgerlerinde maliyetin yaklaşık üçte ikisi.
+- 50 gr dana füme ≈ 99 ₺ (250 gr paket 495 ₺). Nash ve Diplomat'ı %50'ye çıkaran bu.
+- Diplomat = köfte 145,50 + füme 99 + 150 gr Diplomat sos 46,37 + cheddar 14,43 + ekmek 16,50.
 
 ## Sınırlar
 - KDV: menü fiyatı KDV dahil varsayıldı; tedarikçi fiyatlarının KDV durumu sitede yazmıyor.

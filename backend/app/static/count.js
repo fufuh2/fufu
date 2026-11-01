@@ -431,7 +431,7 @@ async function renderItems() {
           table([["Tedarikçi ürünü"], ["Fiyat", "num"]], d.not_in_count_list.rows.map(([n, p]) => [[n, "wrap"], [p, "num"]]))),
         el("p", {}, el("button", { type: "button", class: "danger", onclick: () => applySupplier(true) }, "Elle girilen değerlerin üzerine yaz"))));
     };
-    children.push(el("div", { class: "card toolbar" }, el("span", { class: "grow" }, "Tedarikçi listesindeki (47 ürün) birim fiyat ve paket içeriği bilgileri hazır. Yalnızca boş alanlar doldurulur; sizin girdiğiniz değerler korunur."),
+    children.push(el("div", { class: "card toolbar" }, el("span", { class: "grow" }, "Tedarikçi listesindeki (49 ürün) birim fiyat ve paket içeriği bilgileri hazır. Yalnızca boş alanlar doldurulur; sizin girdiğiniz değerler korunur."),
       el("button", { type: "button", class: "secondary", onclick: () => applySupplier(false) }, "Tedarikçi fiyat ve paket bilgilerini uygula")));
     children.push(el("div", { id: "supplier-report" }));
     if (r.data.length === 0) {

@@ -279,9 +279,10 @@ def test_supplier_prices_and_food_cost(client, session: Session) -> None:
     assert D(str(costs["CHEDAR PEYNİRİ"])) == D("14.43")
     assert D(str(costs["TRÜFLÜ MAYONEZ"])) == D("17.62")
     assert D(str(costs["YOUKİ SOS"])) == D("19.36")
-    assert costs["DANA KIYMA"] is None and costs["KÜHNE ALMAN TURŞU"] is None
-    assert D(str(youki["cost"])) == D("67.91") and youki["cost_complete"] is False
-    assert D(str(youki["price"])) == D("610") and D(str(youki["food_cost_pct"])) == D("11.1")
+    assert D(str(costs["DANA KIYMA"])) == D("145.50")  # 150 g köfte at 970/kg
+    assert costs["KÜHNE ALMAN TURŞU"] is None
+    assert D(str(youki["cost"])) == D("213.41") and youki["cost_complete"] is False
+    assert D(str(youki["price"])) == D("610") and D(str(youki["food_cost_pct"])) == D("35.0")
     pid = youki["id"]
     assert api.patch(f"/menu-products/{pid}", {"price": "650"}).json()["price"] in (
         "650",

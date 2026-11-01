@@ -7,6 +7,24 @@
  },
  "items": [
   {
+   "item": "DANA KIYMA",
+   "supplier": "HAMBURGER KÖFTE",
+   "supplier_price": "970.00",
+   "pack": "1 kg",
+   "unit_price": "970.00",
+   "confidence": "kesin",
+   "note": "Paket 1 kg (işletme sahibi doğruladı, 2026-11-01). Menüdeki 2×75 gr et = 150 gr köfte."
+  },
+  {
+   "item": "KAPLAMALI TAVUK",
+   "supplier": "TAFF TAVUK BURGER ETİ",
+   "supplier_price": "295.00",
+   "pack": "1 kg",
+   "unit_price": "295.00",
+   "confidence": "kesin",
+   "note": "Paket 1 kg (işletme sahibi doğruladı, 2026-11-01)."
+  },
+  {
    "item": "CHEDAR PEYNİRİ",
    "supplier": "TÜRKOVA TAM YAĞLI ERİTME BURGER PEYNİRİ 1000G 70DİLİM KOLİ İÇİ 9",
    "supplier_price": "4545.00",
@@ -430,16 +448,6 @@
   }
  ],
  "not_applied": [
-  {
-   "supplier": "TAFF TAVUK BURGER ETİ",
-   "supplier_price": "295.00",
-   "reason": "Paket boyutu yazmıyor; KAPLAMALI TAVUK için fiyat girilmedi."
-  },
-  {
-   "supplier": "HAMBURGER KÖFTE",
-   "supplier_price": "970.00",
-   "reason": "Paket boyutu yazmıyor; sayımda DANA KIYMA var, hazır köfte mi kullanıldığı bilinmiyor."
-  },
   {
    "supplier": "KARAMELİZE SOĞAN",
    "supplier_price": "195.65",

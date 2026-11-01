@@ -294,7 +294,7 @@ def test_monthly_count_through_ui(page, client, session: Session, tmp_path) -> N
     sync_api.expect(page.get_by_label("DANA KIYMA counted")).to_be_disabled()
 
     _nav(page, "Panel")
-    sync_api.expect(page.locator(".kpi.eksik")).to_contain_text("400,00")
+    sync_api.expect(page.locator(".kpi.eksik").first).to_contain_text("400,00")
     sync_api.expect(page.locator("main")).to_contain_text("En çok eksik veren ürünler")
     page.get_by_role("cell", name="DANA KIYMA").first.click()
     sync_api.expect(page.get_by_role("heading", name="Ürün Analizi")).to_be_visible()
@@ -431,6 +431,6 @@ def test_supplier_data_and_food_cost_through_ui(page, client, session: Session) 
     _nav(page, "Menü & Reçeteler")
     summary = page.locator("section", has=page.get_by_role("heading", name="Maliyet özeti"))
     sync_api.expect(summary).to_contain_text("YOUKI")
-    sync_api.expect(summary).to_contain_text("67,91")
+    sync_api.expect(summary).to_contain_text("213,41")
     sync_api.expect(page.get_by_label("YOUKI satış fiyatı")).to_have_value("610")
     assert page.errors == []
