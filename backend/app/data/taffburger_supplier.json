@@ -134,7 +134,10 @@
    "pack": "1 kg",
    "unit_price": "72.50",
    "confidence": "kesin",
-   "note": "Sitede geçici olarak satışa kapalı. Dilim ağırlığı yazmıyor: reçetedeki '4 adet' için 1 KG = ? ADET girilmeli."
+   "note": "Sitede geçici olarak satışa kapalı. Kaynak: burger turşusu etiketleri — Bick's hamburger slices 9 dilim = 30 g, dill pickle slices 8,5 dilim = 28 g, CalorieKing ~8 dilim = 28 g (dilim başı 3,3–3,5 g). 3,5 g/dilim alındı → 1 KG ≈ 285 dilim. Kendi ürününüzden 10 dilim tartıp düzeltin.",
+   "content_qty": "285",
+   "content_unit": "ADET",
+   "content_confidence": "tahmin"
   },
   {
    "item": "KÜP TURŞU",
@@ -151,7 +154,10 @@
    "pack": "2,55 (kg kabul edildi)",
    "unit_price": "307.94",
    "confidence": "cikarim",
-   "note": "'2.55' birimi yazmıyor; kg kabul edildi. Adet ağırlığı yazmıyor."
+   "note": "'2.55' birimi yazmıyor; kg kabul edildi. Menüdeki '4x salatalık turşusu' burger dilimi kabul edildi. Kaynak: burger turşusu etiketleri — Bick's hamburger slices 9 dilim = 30 g, dill pickle slices 8,5 dilim = 28 g, CalorieKing ~8 dilim = 28 g (dilim başı 3,3–3,5 g). 3,5 g/dilim alındı → 1 KG ≈ 285 dilim. Kendi ürününüzden 10 dilim tartıp düzeltin. Kavanozun süzme ağırlığı ve adedi kaynaklarda bulunamadı.",
+   "content_qty": "285",
+   "content_unit": "ADET",
+   "content_confidence": "tahmin"
   },
   {
    "item": "PARMESAN PEYNİRİ",
@@ -445,6 +451,42 @@
    "pack": "100'lü paket",
    "unit_price": "145.00",
    "confidence": "cikarim"
+  },
+  {
+   "item": "SACHET KETÇAP",
+   "supplier": "HEINZ KETÇAP STICK 9 GR. x 1000'Lİ",
+   "supplier_price": "2180.00",
+   "pack": "1000 stick × 9 gr",
+   "unit_price": null,
+   "content_qty": "0.009",
+   "content_unit": "KG",
+   "confidence": "tahmin",
+   "content_confidence": "kesin",
+   "note": "Sayımda 1 ADET = 1 stick (9 gr) kabul edildi; koli sayılıyorsa paket içeriği 9 KG olmalı. Fiyat girilmedi (sayım birimi belirsiz). 9 gr: Costco / gofoodservice Heinz 1000'lik listeleri."
+  },
+  {
+   "item": "SACHET MAYONEZ",
+   "supplier": "HEINZ MAYONEZ STICK 9 GR. x 504'LÜ",
+   "supplier_price": "1612.80",
+   "pack": "504 stick × 9 gr",
+   "unit_price": null,
+   "content_qty": "0.009",
+   "content_unit": "KG",
+   "confidence": "tahmin",
+   "content_confidence": "kesin",
+   "note": "Sayımda 1 ADET = 1 stick (9 gr) kabul edildi; koli sayılıyorsa paket içeriği 4,536 KG olmalı. Fiyat girilmedi."
+  },
+  {
+   "item": "ACI SOS",
+   "supplier": "ACI SOS KÜVET 20 GR x 120 Ad / HEİNZ",
+   "supplier_price": "467.26",
+   "pack": "120 küvet × 20 gr",
+   "unit_price": null,
+   "content_qty": "0.02",
+   "content_unit": "KG",
+   "confidence": "tahmin",
+   "content_confidence": "kesin",
+   "note": "Sayımda 1 ADET = 1 küvet (20 gr) kabul edildi; koli sayılıyorsa 2,4 KG olmalı. Fiyat girilmedi."
   }
  ],
  "not_applied": [
@@ -462,21 +504,6 @@
    "supplier": "AYSAN SALATALIK TURŞU SALATALIK NO 3",
    "supplier_price": "72.50",
    "reason": "Paket boyutu yazmıyor; menüdeki salatalık turşusu bu da olabilir."
-  },
-  {
-   "supplier": "HEINZ KETÇAP STICK 9 GR x 1000'Lİ",
-   "supplier_price": "2180.00",
-   "reason": "Sayımdaki SACHET KETÇAP 1 ADET'in stick mi koli mi olduğu bilinmiyor."
-  },
-  {
-   "supplier": "HEINZ MAYONEZ STICK 9 GR x 504'LÜ",
-   "supplier_price": "1612.80",
-   "reason": "Sayımdaki SACHET MAYONEZ 1 ADET'in stick mi koli mi olduğu bilinmiyor."
-  },
-  {
-   "supplier": "ACI SOS KÜVET 20 GR x 120 Ad / HEİNZ",
-   "supplier_price": "467.26",
-   "reason": "Sayımdaki ACI SOS 1 ADET'in küvet mi koli mi olduğu bilinmiyor."
   },
   {
    "supplier": "Kova Barbekü (Kraft) 5 Kg X 1 Ad",

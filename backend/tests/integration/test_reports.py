@@ -147,7 +147,7 @@ def test_setup_status_lists_what_is_missing(client, session: Session) -> None:
     assert st["products_without_recipe"] == ["Boş Burger"]
     assert st["products_without_price"] == ["Boş Burger"]
     assert "ICEBERG" in st["recipe_items_without_price"]
-    assert "HALKA TURŞU" in st["unconverted"]  # pieces of a 1 kg pack: weight unknown
+    assert st["unconverted"] == []  # pickle slices: ~285 per kg from the supplier data
     d = api.get(f"/branches/{branch}/dashboard?period=2026-08").json()
     assert d["current"] is None
     api.put(f"/branches/{branch}/monthly-counts/2026-08", {"lines": []})

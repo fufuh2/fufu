@@ -351,10 +351,11 @@ def apply_supplier_data(session: Session, actor: Actor, overwrite: bool) -> dict
             not_in_list.append(row["item"])
             continue
         changes: dict[str, str] = {}
-        price = Decimal(row["unit_price"])
-        if item.unit_price != price and (item.unit_price is None or overwrite):
-            item.unit_price = price
-            changes["unit_price"] = row["unit_price"]
+        if row.get("unit_price"):
+            price = Decimal(row["unit_price"])
+            if item.unit_price != price and (item.unit_price is None or overwrite):
+                item.unit_price = price
+                changes["unit_price"] = row["unit_price"]
         if row.get("content_qty"):
             qty, unit = Decimal(row["content_qty"]), row["content_unit"]
             if (item.content_qty, item.content_unit) != (qty, unit) and (

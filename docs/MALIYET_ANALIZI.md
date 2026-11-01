@@ -13,29 +13,29 @@ ve bölme hesapları doğru çıktı. Güven etiketleri o kontrolden sonra düze
 
 ## Maliyet oranı (2026-11-01)
 Köfte (HAMBURGER KÖFTE 970 ₺/kg) ve tavuk burger eti (295 ₺/kg) paketlerinin 1 kg olduğu işletme sahibince
-doğrulandı. "Eksik" sütunundaki malzemelerin fiyatı ya da çevrimi hâlâ yok; o ürünlerde gerçek oran biraz daha yüksektir.
+doğrulandı. Turşu dilimi ≈3,5 gr (1 kg ≈ 285 dilim; burger turşusu etiketlerinden, tahmin). "Eksik" sütunundaki malzemelerin fiyatı ya da çevrimi hâlâ yok; o ürünlerde gerçek oran biraz daha yüksektir.
 
 | Burger | Satış ₺ | Malzeme maliyeti ₺ | Oran | Brüt kâr ₺ | Maliyeti eksik |
 |---|---:|---:|---:|---:|---|
 | NASH | 450 | 226,43 | %50,3 | 223,57 | — |
 | DIPLOMAT | 640 | 321,80 | %50,3 | 318,20 | Doritos |
 | LILLY | 610 | 269,78 | %44,2 | 340,22 | soğan turşusu |
-| CHEESE BURGER | 560 | 219,36 | %39,2 | 340,64 | salatalık turşusu |
+| CHEESE BURGER | 560 | 223,68 | %39,9 | 336,32 | — |
 | NORI | 610 | 229,56 | %37,6 | 380,44 | — |
 | COY | 630 | 225,64 | %35,8 | 404,36 | — |
+| YOUKI | 610 | 217,73 | %35,7 | 392,27 | — |
+| FAKE DONALD'S | 610 | 215,29 | %35,3 | 394,71 | iceberg, fake soğanı |
 | EL TORATO | 610 | 214,97 | %35,2 | 395,03 | — |
-| YOUKI | 610 | 213,41 | %35,0 | 396,59 | salatalık turşusu |
-| FAKE DONALD'S | 610 | 210,97 | %34,6 | 399,03 | iceberg, salatalık turşusu, fake soğanı |
-| TRUFFLE | 630 | 211,67 | %33,6 | 418,33 | iceberg, salatalık turşusu |
+| TRUFFLE | 630 | 215,99 | %34,3 | 414,01 | iceberg |
 | ROYALE | 900 | 285,27 | %31,7 | 614,73 | Royale sos |
 | SEUL | 430 | 127,80 | %29,7 | 302,20 | — |
 | BALANCE | 590 | 170,80 | %28,9 | 419,20 | iceberg, kırmızı soğan, domates |
 | NOUR | 390 | 106,65 | %27,3 | 283,35 | fake soğanı |
-| CHEESE TAO | 410 | 97,83 | %23,9 | 312,17 | iceberg, halka turşu |
+| CHEESE TAO | 410 | 98,85 | %24,1 | 311,15 | iceberg |
 | TAFF CHICKEN | 410 | 96,31 | %23,5 | 313,69 | — |
 | PUMPKIN CARROT | 390 | 88,59 | %22,7 | 301,41 | iceberg |
 | OVERDOSE | 440 | 94,96 | %21,6 | 345,04 | iceberg |
-| SHOGUN | 420 | 54,45 | %13,0 | 365,55 | iceberg, kuru soğan, halka turşu (tavuk menüde yazmıyor) |
+| SHOGUN | 420 | 55,47 | %13,2 | 364,53 | iceberg, kuru soğan (tavuk menüde yazmıyor) |
 
 Gözlemler:
 - 150 gr köfte tek başına 145,50 ₺; et burgerlerinde maliyetin yaklaşık üçte ikisi.
