@@ -23,10 +23,18 @@ def _check_password(password: str) -> None:
 
 
 def bootstrap_tenant(
-    session: Session, *, name: str, owner_email: str, owner_password: str, currency: str = "TRY"
+    session: Session,
+    *,
+    name: str,
+    owner_email: str,
+    owner_password: str,
+    currency: str = "TRY",
+    allow_weak_password: bool = False,
 ) -> tuple[Tenant, User]:
-    """Platform-level operation (CLI only, no HTTP endpoint)."""
-    _check_password(owner_password)
+    """Platform-level operation (CLI only, no HTTP endpoint). `allow_weak_password` is only for
+    the isolated demo business (app.demo), never for a real one."""
+    if not allow_weak_password:
+        _check_password(owner_password)
     try:
         # Same rule as the login endpoint, otherwise the owner could never sign in.
         owner_email = TypeAdapter(EmailStr).validate_python(owner_email)
