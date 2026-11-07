@@ -4,6 +4,10 @@ Created on start when OPSX_DEMO_EMAIL and OPSX_DEMO_PASSWORD are set and that e-
 exist yet. It is a separate business (tenant): its owner cannot see or change any other
 business. The password may be shorter than the normal 12-character rule because only demo
 data sits behind it.
+
+OPSX_DEMO_RESET=<any word> starts the demo over once: the old demo owner is deactivated and
+renamed (the audit log is append-only, so the old business cannot be deleted) and a fresh demo
+is created. A word that was already used does nothing, so restarts do not create new demos.
 """
 
 import random
@@ -24,10 +28,18 @@ def _month(d: date, delta: int) -> date:
     return date(d.year + m // 12, m % 12 + 1, 1)
 
 
-def ensure_demo(session: Session, email: str, password: str, today: date | None = None) -> str:
+def ensure_demo(
+    session: Session, email: str, password: str, today: date | None = None, reset: str = ""
+) -> str:
     email = email.strip().lower()
-    if session.scalar(select(User.id).where(User.email == email)) is not None:
-        return "skipped: demo account exists"
+    existing = session.scalar(select(User).where(User.email == email))
+    if existing is not None:
+        retired = f"retired-{reset.strip().lower()}.{email}"
+        if not reset.strip() or session.scalar(select(User.id).where(User.email == retired)):
+            return "skipped: demo account exists"
+        existing.email, existing.is_active = retired, False
+        existing.token_version += 1
+        session.flush()
     today = today or date.today()
     _, owner = admin.bootstrap_tenant(
         session,
@@ -125,14 +137,18 @@ def ensure_demo(session: Session, email: str, password: str, today: date | None 
     for g in sheet["groups"]:
         for ln in g["lines"]:
             expected = Decimal(str(ln["expected"]))
-            counted = max(expected, Decimal("0"))
-            if counted > 0 and rnd.random() < 0.25:
+            opening = None
+            if expected < 0:  # used more than came in: give the month an opening stock
+                opening = (-expected * Decimal("1.2")).quantize(Decimal("0.001"))
+                expected += opening
+            counted = expected
+            if counted > 0 and rnd.random() < 0.3:
                 counted = (counted * Decimal(str(rnd.uniform(0.9, 0.99)))).quantize(
                     Decimal("0.001")
                 )
-            if expected < 0:  # sold more than came in: show it as stock found
-                lines.append(monthly.LineUpdate(item_id=ln["item_id"], opening=-expected))
-            lines.append(monthly.LineUpdate(item_id=ln["item_id"], counted=counted))
+            lines.append(
+                monthly.LineUpdate(item_id=ln["item_id"], opening=opening, counted=counted)
+            )
     monthly.save_lines(
         session, actor, branch, last.strftime("%Y-%m"), lines, {"counted_by_name": "Demo Sayım"}
     )

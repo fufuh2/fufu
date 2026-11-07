@@ -38,7 +38,8 @@ def main() -> int:
     if demo_email and demo_password:
         try:
             with get_sessionmaker()() as session:
-                print(ensure_demo(session, demo_email, demo_password), flush=True)
+                reset = os.environ.get("OPSX_DEMO_RESET", "")
+                print(ensure_demo(session, demo_email, demo_password, reset=reset), flush=True)
         except Exception as exc:  # noqa: BLE001 - a demo problem must not stop the real system
             print(f"demo account not created: {exc}", flush=True)
     uvicorn.run(

@@ -25,6 +25,8 @@ def test_demo_business_is_seeded_and_isolated(client, session: Session) -> None:
         ("2026-11", "draft"),
         ("2026-10", "closed"),
     ]
+    totals = months[1]["totals"]
+    assert totals["counted"] == totals["items"] and totals["eksik"] > 0  # a realistic shortfall
     pl = demo.get(f"/branches/{b}/profit-loss?period=2026-10").json()
     assert float(pl["revenue"]) > 0 and pl["material_basis"].startswith("gerçek")
     assert float(pl["labor_cost"]) > 42000 and float(pl["expense_total"]) == 69700
@@ -38,4 +40,17 @@ def test_demo_business_is_seeded_and_isolated(client, session: Session) -> None:
         "/users", {"email": "x@demo.com", "password": "123456", "role": "viewer", "branch_ids": [b]}
     )
     assert res.status_code == 422
+    assert session.execute(text("SELECT count(*) FROM tenants")).scalar() == 2
+
+
+def test_demo_reset_starts_over_once(client, session: Session) -> None:
+    ensure_demo(session, "demo@demo.com", "123456", today=date(2026, 11, 7))
+    old = Api(client, "demo@demo.com", "123456")
+    old_branch = old.get("/branches").json()[0]["id"]
+    assert ensure_demo(session, "demo@demo.com", "123456", reset="r1").startswith("created")
+    assert old.get("/branches").status_code == 401  # the old demo session is closed
+    new = Api(client, "demo@demo.com", "123456")
+    assert new.get(f"/branches/{old_branch}/monthly-counts").status_code == 404
+    # the same reset word again (a restart) does not create yet another demo
+    assert ensure_demo(session, "demo@demo.com", "123456", reset="r1").startswith("skipped")
     assert session.execute(text("SELECT count(*) FROM tenants")).scalar() == 2
