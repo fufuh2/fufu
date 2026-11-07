@@ -185,7 +185,10 @@ async function bootstrapSession() {
   state.me = me.data;
   await loadBranches();
   document.getElementById("whoami").textContent = `${state.me.email} · ${state.me.role_label}`;
-  for (const a of document.querySelectorAll("#nav a")) a.parentElement.hidden = !!a.dataset.perm && !can(a.dataset.perm);
+  // data-perm="a|b": any of the listed permissions shows the link
+  for (const a of document.querySelectorAll("#nav a")) a.parentElement.hidden = !!a.dataset.perm && !a.dataset.perm.split("|").some(can);
+  const anyBusiness = [...document.querySelectorAll('#nav a[href^="#/sat"], #nav a[href="#/giderler"], #nav a[href="#/personel"], #nav a[href="#/kar-zarar"]')].some((a) => !a.parentElement.hidden);
+  document.querySelector('#nav [data-section="business"]').hidden = !anyBusiness;
   const anyAdmin = [...document.querySelectorAll("#nav a[data-perm]")].some((a) => ["user.manage", "branch.manage", "audit.read"].includes(a.dataset.perm) && !a.parentElement.hidden);
   document.querySelector('#nav [data-section="admin"]').hidden = !anyAdmin;
   document.getElementById("top").hidden = false;

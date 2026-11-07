@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Taff Burger · Aylık Sayım</title>
+  <title>Taff Burger · İşletme Yönetimi</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="app.css">
   <script src="app.js" defer></script>
@@ -11,12 +11,13 @@
   <script src="panel.js" defer></script>
   <script src="admin.js" defer></script>
   <script src="menu.js" defer></script>
+  <script src="erp.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">İçeriğe geç</a>
   <div class="shell" id="shell">
     <aside class="side" id="side" hidden>
-      <div class="brand"><span class="logo" aria-hidden="true">TB</span><span><strong>Taff Burger</strong><small>Aylık Sayım</small></span></div>
+      <div class="brand"><span class="logo" aria-hidden="true">TB</span><span><strong>Taff Burger</strong><small>İşletme Yönetimi</small></span></div>
       <label class="branch">Şube
         <select id="branch-select" aria-label="Şube seç"></select>
       </label>
@@ -28,6 +29,12 @@
           <li><a href="#/analiz" data-perm="count.read">Ürün Analizi</a></li>
           <li><a href="#/urunler" data-perm="count.read">Ürün Listesi</a></li>
           <li><a href="#/receteler" data-perm="count.read">Menü &amp; Reçeteler</a></li>
+          <li class="section" data-section="business">İşletme</li>
+          <li><a href="#/satislar" data-perm="sales.manage|finance.read">Satışlar</a></li>
+          <li><a href="#/satin-alma" data-perm="purchase.manage|finance.read">Satın Alma</a></li>
+          <li><a href="#/giderler" data-perm="expense.manage|finance.read">Giderler</a></li>
+          <li><a href="#/personel" data-perm="staff.manage|finance.read">Personel</a></li>
+          <li><a href="#/kar-zarar" data-perm="finance.read">Kâr-Zarar</a></li>
           <li class="section" data-section="admin">Yönetim</li>
           <li><a href="#/kullanicilar" data-perm="user.manage">Kullanıcılar</a></li>
           <li><a href="#/subeler" data-perm="branch.manage">Şubeler</a></li>

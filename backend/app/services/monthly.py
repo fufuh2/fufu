@@ -26,6 +26,7 @@ from app.errors import Conflict, Invalid, NotFound
 from app.models import (
     COUNT_UNITS,
     CountItem,
+    DailySale,
     MenuProduct,
     MonthlyCount,
     MonthlyCountLine,
@@ -229,6 +230,23 @@ def _has_data(session: Session, count: MonthlyCount) -> bool:
     )
 
 
+def _has_daily_sales(session: Session, count: MonthlyCount) -> bool:
+    start = count.period
+    end = date(start.year + (start.month == 12), start.month % 12 + 1, 1)
+    return (
+        session.scalar(
+            select(DailySale.id)
+            .where(
+                DailySale.branch_id == count.branch_id,
+                DailySale.date >= start,
+                DailySale.date < end,
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
 def _previous_sheet(session: Session, count: MonthlyCount) -> MonthlyCount | None:
     for earlier in session.scalars(
         select(MonthlyCount)
@@ -359,6 +377,11 @@ def save_lines(
         raise Conflict(
             "bu ay siz açtıktan sonra başka biri tarafından kaydedildi; üzerine yazmamak için "
             "kaydedilmedi. Girdiğiniz değerleri not alın, sayfayı yenileyip tekrar girin."
+        )
+    if sales and _has_daily_sales(session, count):
+        raise Conflict(
+            "bu ayın menü satışları Satışlar sayfasındaki günlük girişlerden hesaplanıyor; "
+            "değişikliği orada yapın"
         )
     count.version += 1
     lines = {
@@ -634,6 +657,7 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         "id": count.id,
         "branch_id": count.branch_id,
         "sales": products,
+        "sales_from_daily": _has_daily_sales(session, count),
         "recipes": recipes,
         "recipe_warnings": warnings,
         "period": count.period.strftime("%Y-%m"),

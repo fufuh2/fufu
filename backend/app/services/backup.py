@@ -20,11 +20,18 @@ from app.models import (
     AuditEvent,
     Branch,
     CountItem,
+    DailySale,
+    Employee,
+    Expense,
     MenuProduct,
     MonthlyCount,
     MonthlyCountLine,
     MonthlySale,
+    PurchaseReceipt,
+    PurchaseReceiptLine,
     RecipeLine,
+    Shift,
+    Supplier,
     Tenant,
     User,
     UserBranchAccess,
@@ -45,10 +52,24 @@ TABLES: list[Table] = [
     MonthlyCount.__table__,  # type: ignore[list-item]
     MonthlyCountLine.__table__,  # type: ignore[list-item]
     MonthlySale.__table__,  # type: ignore[list-item]
+    Supplier.__table__,  # type: ignore[list-item]
+    PurchaseReceipt.__table__,  # type: ignore[list-item]
+    PurchaseReceiptLine.__table__,  # type: ignore[list-item]
+    DailySale.__table__,  # type: ignore[list-item]
+    Expense.__table__,  # type: ignore[list-item]
+    Employee.__table__,  # type: ignore[list-item]
+    Shift.__table__,  # type: ignore[list-item]
     AuditEvent.__table__,  # type: ignore[list-item]
 ]
 # Autoincrement ids nothing points to; a restore lets the new database number them.
-FRESH_IDS = {"monthly_count_lines", "recipe_lines", "audit_events"}
+FRESH_IDS = {
+    "monthly_count_lines",
+    "recipe_lines",
+    "audit_events",
+    "purchase_receipt_lines",
+    "daily_sales",
+    "shifts",
+}
 
 
 def _plain(v: Any) -> Any:
@@ -70,6 +91,12 @@ def _rows(session: Session, table: Table, tenant_id: uuid.UUID) -> list[dict[str
     elif table.name == "recipe_lines":
         stmt = select(table).where(
             c.product_id.in_(select(MenuProduct.id).where(MenuProduct.tenant_id == tenant_id))
+        )
+    elif table.name == "purchase_receipt_lines":
+        stmt = select(table).where(
+            c.receipt_id.in_(
+                select(PurchaseReceipt.id).where(PurchaseReceipt.tenant_id == tenant_id)
+            )
         )
     else:  # monthly_count_lines, monthly_sales
         stmt = select(table).where(
@@ -167,7 +194,16 @@ def restore(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, i
     # to another business's months, products, branches or users.
     own = {
         name: {r.get("id") for r in tables.get(name, [])}
-        for name in ("branches", "users", "count_items", "menu_products", "monthly_counts")
+        for name in (
+            "branches",
+            "users",
+            "count_items",
+            "menu_products",
+            "monthly_counts",
+            "suppliers",
+            "purchase_receipts",
+            "employees",
+        )
     }
     refs = {
         "branch_id": "branches",
@@ -177,6 +213,9 @@ def restore(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, i
         "item_id": "count_items",
         "product_id": "menu_products",
         "count_id": "monthly_counts",
+        "supplier_id": "suppliers",
+        "receipt_id": "purchase_receipts",
+        "employee_id": "employees",
     }
     for name, rows_ in tables.items():
         if not isinstance(rows_, list):

@@ -25,6 +25,7 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 | Bağımsız kod incelemesi (2026-11-01) 9 bulgu: ay kapatma sırası, pasif ürünün kapatmayı kilitlemesi, kullanılmış ürünün birim değişikliği, Excel formül enjeksiyonu, kayıt sırasında yazılanın kaybolması, ekran/sunucu yuvarlama farkı, 4 ondalığın 3'e düşmesi, boş alanın yanlış hata vermesi, eski sayfanın yenisinin üstüne çizilmesi — hepsi düzeltildi | `test_review_fixes`, `test_setup_status_lists_what_is_missing`, tarayıcı testleri |
 | Yedek / geri yükleme: tek dosya, tek transaction, yalnız boş işletmeye; dosya dışına referans ve sürüm farkı reddedilir; aynı e-postalı sahip korunur | `tests/integration/test_backup.py` |
 | Aynı ayın eşzamanlı düzenlenmesi: sürüm numarası, eski sürümle kayıt 409 | `test_concurrent_edits_do_not_overwrite_each_other` |
+| İşletme modülleri: mal kabul → Gelen, günlük satış → menü satışları (sayımda kilitli), gider, personel/vardiya (gece yarısı), kâr-zarar (sayıldıysa gerçek, değilse teorik maliyet); rol yetkileri; yedeğe dahil | `tests/integration/test_erp.py`, `test_erp_modules_through_ui`, `docs/ISLETME.md` |
 | Veritabanı taşıma: `copy-from-if-empty` tek transaction, boş hedef ve aynı şema şartı | `tests/integration/test_copy.py` |
 | Panel, ay listesi toplamları, ürün geçmişi, şubeler özeti; panel ay oluşturmaz | `tests/integration/test_reports.py` |
 | Roller ve şube kapsamı; tenant izolasyonu; kaldırılan uç noktalar 404 | `tests/integration/test_security.py` |

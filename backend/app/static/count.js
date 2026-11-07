@@ -245,7 +245,7 @@ function drawSheet(sheet) {
 
   // Menü satışları: adet girilince reçetedeki malzemelerin "Satıştan" değeri anında değişir.
   const salesInputs = sheet.sales.map((x) => {
-    const input = el("input", { inputmode: "decimal", class: "qty", value: numForInput(x.quantity), disabled: !editable, "aria-label": `${x.name} satılan` });
+    const input = el("input", { inputmode: "decimal", class: "qty", value: numForInput(x.quantity), disabled: !editable || sheet.sales_from_daily, "aria-label": `${x.name} satılan` });
     input.addEventListener("input", () => {
       const v = parseDecimal(input.value);
       const bad = v === undefined;
@@ -268,7 +268,7 @@ function drawSheet(sheet) {
   const salesBox = el("div", { class: "sales-grid" }, salesInputs);
   const salesCard = el("details", { class: "card sales no-print", open: sheet.sales.length > 0 && editable },
     el("summary", {}, el("strong", {}, "Menü satışları"), el("span", { class: "hint" },
-      sheet.sales.length ? ` · ${sheet.sales.length} ürün · bu ay satılan adetler; reçeteye göre malzeme kullanımı hesaplanır` : " · menü ürünü yok — Menü & Reçeteler sayfasından ekleyin")),
+      sheet.sales_from_daily ? " · Satışlar sayfasındaki günlük girişlerin toplamı (buradan değiştirilmez)" : sheet.sales.length ? ` · ${sheet.sales.length} ürün · bu ay satılan adetler; reçeteye göre malzeme kullanımı hesaplanır` : " · menü ürünü yok — Menü & Reçeteler sayfasından ekleyin")),
     sheet.sales.length ? salesBox : el("p", { class: "empty" }, can("item.manage") ? "Burgerlerinizi ve reçetelerini Menü & Reçeteler sayfasında tanımlayın." : "Menü ürünleri henüz tanımlanmadı."));
   const bodies = sheet.groups.map((g) => {
     const meta = el("span", { class: "gmeta" });

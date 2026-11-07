@@ -19,7 +19,15 @@ class TestPermissions:
         assert has_perm(Role.BRANCH_MANAGER, Perm.COUNT_CLOSE)
         assert not has_perm(Role.COUNTER, Perm.COUNT_CLOSE)
         assert has_perm(Role.COUNTER, Perm.COUNT_EDIT)
-        assert ROLE_PERMISSIONS[Role.VIEWER] == {Perm.COUNT_READ, Perm.AUDIT_READ}
+        assert ROLE_PERMISSIONS[Role.VIEWER] == {
+            Perm.COUNT_READ,
+            Perm.AUDIT_READ,
+            Perm.FINANCE_READ,
+        }
+        # counting staff receive goods and enter sales but see no money
+        assert not has_perm(Role.COUNTER, Perm.FINANCE_READ)
+        assert not has_perm(Role.COUNTER, Perm.EXPENSE_MANAGE)
+        assert has_perm(Role.COUNTER, Perm.PURCHASE_MANAGE)
 
 
 class TestConfig:

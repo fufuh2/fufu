@@ -182,3 +182,10 @@ legend { font-size: 13px; color: var(--muted); margin-bottom: 4px; padding: 0; }
 .todo ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .todo a { color: var(--accent); font-weight: 600; }
 .ok-box { border-color: #9cd3ad; background: var(--ok-bg); color: var(--ok); }
+.pl td { padding: 9px 10px; }
+.pl tr.total td { border-top: 2px solid var(--fg); }
+.pl tr.strong td { font-weight: 700; }
+.pl tr.neg td:last-child { color: var(--bad); }
+.pl tr.pos td:last-child { color: var(--ok); }
+details.receipt { border-bottom: 1px solid var(--line); padding: 8px 0; }
+details.receipt summary { cursor: pointer; }

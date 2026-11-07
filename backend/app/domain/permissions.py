@@ -11,6 +11,11 @@ class Perm(StrEnum):
     COUNT_EDIT = "count.edit"  # enter opening / incoming / used / waste / counted
     COUNT_CLOSE = "count.close"  # close and reopen a month
     AUDIT_READ = "audit.read"
+    PURCHASE_MANAGE = "purchase.manage"  # suppliers and goods receipts
+    SALES_MANAGE = "sales.manage"  # daily sales entry
+    EXPENSE_MANAGE = "expense.manage"
+    STAFF_MANAGE = "staff.manage"  # employees and shifts
+    FINANCE_READ = "finance.read"  # profit and loss, sales and purchase reports
 
 
 class Role(StrEnum):
@@ -25,10 +30,23 @@ _ALL = frozenset(Perm)
 ROLE_PERMISSIONS: dict[Role, frozenset[Perm]] = {
     Role.OWNER: _ALL,
     Role.BRANCH_MANAGER: frozenset(
-        {Perm.COUNT_READ, Perm.COUNT_EDIT, Perm.COUNT_CLOSE, Perm.AUDIT_READ}
+        {
+            Perm.COUNT_READ,
+            Perm.COUNT_EDIT,
+            Perm.COUNT_CLOSE,
+            Perm.AUDIT_READ,
+            Perm.PURCHASE_MANAGE,
+            Perm.SALES_MANAGE,
+            Perm.EXPENSE_MANAGE,
+            Perm.STAFF_MANAGE,
+            Perm.FINANCE_READ,
+        }
     ),
-    Role.COUNTER: frozenset({Perm.COUNT_READ, Perm.COUNT_EDIT}),
-    Role.VIEWER: frozenset({Perm.COUNT_READ, Perm.AUDIT_READ}),
+    # Counting staff also receive deliveries and enter the day's sales.
+    Role.COUNTER: frozenset(
+        {Perm.COUNT_READ, Perm.COUNT_EDIT, Perm.PURCHASE_MANAGE, Perm.SALES_MANAGE}
+    ),
+    Role.VIEWER: frozenset({Perm.COUNT_READ, Perm.AUDIT_READ, Perm.FINANCE_READ}),
 }
 
 ROLE_LABELS: dict[Role, str] = {

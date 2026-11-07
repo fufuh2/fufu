@@ -460,3 +460,73 @@ def test_backup_download_and_todo_through_ui(page, client, session: Session, tmp
     page.get_by_role("button", name="Yedekten geri yükle").click()
     sync_api.expect(page.locator("#msg")).to_contain_text("yalnızca boş bir sisteme")
     assert [e for e in page.errors if "409" not in e] == []
+
+
+def test_erp_modules_through_ui(page, client, session: Session) -> None:
+    api = new_tenant(session, client)
+    setup_branch(api)
+    api.post("/menu-products/load-defaults?add_missing_items=true")
+    api.post("/count-items/apply-supplier-data")
+    items = {i["name"]: i["id"] for i in api.get("/count-items").json()}
+    page.goto("/ui/#/login")
+    page.evaluate("sessionStorage.setItem('period', '2026-08')")
+    _login(page, _owner_email(session))
+
+    # purchasing: a delivery fills 'Gelen' on the count sheet
+    _nav(page, "Satın Alma")
+    page.get_by_role("link", name="Satın Alma").first.wait_for()
+    page.locator("summary", has_text="Tedarikçiler").click()
+    page.get_by_label("Yeni tedarikçi").fill("Taff Merkez")
+    page.get_by_role("button", name="Tedarikçi ekle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Taff Merkez eklendi")
+    page.get_by_label("Belge tarihi").fill("2026-08-05")
+    page.get_by_label("Tedarikçi", exact=True).select_option(label="Taff Merkez")
+    page.get_by_label("Ürün 1").select_option(items["DANA KIYMA"])
+    page.get_by_label("Miktar 1").fill("20")
+    sync_api.expect(page.get_by_label("Birim fiyat 1")).to_have_value("970")
+    page.get_by_role("button", name="Mal kabulü kaydet").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Mal kabul kaydedildi")
+    sync_api.expect(page.locator("main")).to_contain_text("19.400,00")
+
+    # daily sales: the month's menu sales on the sheet come from here
+    _nav(page, "Satışlar")
+    page.get_by_label("Satış günü").fill("2026-08-10")
+    page.get_by_label("Satış günü").dispatch_event("change")
+    sync_api.expect(page.get_by_role("heading", name=re.compile("^10 Ağu"))).to_be_visible()
+    page.get_by_label("YOUKI adet").fill("100")
+    page.get_by_role("button", name="Günü kaydet").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("satışları kaydedildi")
+    sync_api.expect(page.locator("main")).to_contain_text("61.000,00")
+
+    _nav(page, "Aylık Sayım")
+    row = page.locator("tr", has=page.get_by_role("cell", name="DANA KIYMA", exact=True))
+    sync_api.expect(page.get_by_label("DANA KIYMA incoming")).to_have_value("20")
+    sync_api.expect(row.locator("td.recipe")).to_have_text("15")  # 100 × 150 g
+    sync_api.expect(page.get_by_label("YOUKI satılan")).to_be_disabled()
+
+    # expenses and staff
+    _nav(page, "Giderler")
+    page.get_by_label("Gider tarihi").fill("2026-08-01")
+    page.get_by_label("Gider türü").select_option("kira")
+    page.get_by_label("Tutar").fill("30000")
+    page.get_by_role("button", name="Gider ekle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Gider eklendi")
+    _nav(page, "Personel")
+    page.get_by_label("Personel adı").fill("Veli")
+    page.get_by_label("Ücret türü").select_option("hourly")
+    page.get_by_label("Ücret", exact=True).fill("150")
+    page.get_by_role("button", name="Ekle", exact=True).click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("Veli eklendi")
+    page.get_by_label("Vardiya günü").fill("2026-08-03")
+    page.get_by_label("Başlangıç").fill("18:00")
+    page.get_by_label("Bitiş").fill("02:00")
+    page.get_by_role("button", name="Vardiya ekle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("8 saat")
+
+    _nav(page, "Kâr-Zarar")
+    pl = page.locator("table.pl")
+    sync_api.expect(pl).to_contain_text("61.000,00")  # revenue
+    sync_api.expect(pl).to_contain_text("Kira")
+    sync_api.expect(pl).to_contain_text("1.200,00")  # 8 h × 150
+    sync_api.expect(pl).to_contain_text("Net kâr")
+    assert page.errors == []

@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Query, Response
@@ -9,7 +10,7 @@ from app.config import load_settings
 from app.domain.permissions import ROLE_LABELS, ROLE_PERMISSIONS
 from app.models import User
 from app.security import issue_token
-from app.services import admin, backup, menu, monthly, monthly_export, monthly_reports
+from app.services import admin, backup, erp, menu, monthly, monthly_export, monthly_reports
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -321,3 +322,165 @@ def export_monthly_count(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="sayim-{period}.xlsx"'},
     )
+
+
+# --- ERP: purchasing, sales, expenses, staff, profit and loss --------------------------------
+
+
+@router.get("/suppliers", response_model=list[s.SupplierOut])
+def list_suppliers(actor: ActorDep, session: SessionDep) -> Any:
+    return erp.list_suppliers(session, actor)
+
+
+@router.post("/suppliers", response_model=s.SupplierOut, status_code=201)
+def create_supplier(body: s.SupplierIn, actor: ActorDep, session: SessionDep) -> Any:
+    return erp.save_supplier(session, actor, None, body.model_dump(exclude_unset=True))
+
+
+@router.patch("/suppliers/{supplier_id}", response_model=s.SupplierOut)
+def update_supplier(
+    supplier_id: uuid.UUID, body: s.SupplierIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.save_supplier(session, actor, supplier_id, body.model_dump(exclude_unset=True))
+
+
+@router.get("/branches/{branch_id}/receipts")
+def list_receipts(
+    branch_id: uuid.UUID, period: s.PeriodQuery, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.list_receipts(session, actor, branch_id, period)
+
+
+@router.post("/branches/{branch_id}/receipts", status_code=201)
+def create_receipt(
+    branch_id: uuid.UUID, body: s.ReceiptIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    r = erp.create_receipt(
+        session,
+        actor,
+        branch_id,
+        day=body.date,
+        supplier_id=body.supplier_id,
+        document_no=body.document_no,
+        note=body.note,
+        lines=[(x.item_id, x.quantity, x.unit_price) for x in body.lines],
+        update_prices=body.update_prices,
+    )
+    return {"id": r.id}
+
+
+@router.delete("/receipts/{receipt_id}", status_code=204)
+def delete_receipt(receipt_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> None:
+    erp.delete_receipt(session, actor, receipt_id)
+
+
+@router.get("/branches/{branch_id}/sales/day")
+def get_sales_day(
+    branch_id: uuid.UUID,
+    day: Annotated[date, Query(alias="date")],
+    actor: ActorDep,
+    session: SessionDep,
+) -> Any:
+    return erp.get_day(session, actor, branch_id, day)
+
+
+@router.put("/branches/{branch_id}/sales/day")
+def save_sales_day(
+    branch_id: uuid.UUID,
+    day: Annotated[date, Query(alias="date")],
+    body: s.DaySalesIn,
+    actor: ActorDep,
+    session: SessionDep,
+) -> Any:
+    return erp.save_day(
+        session,
+        actor,
+        branch_id,
+        day,
+        [(x.product_id, x.quantity, x.unit_price) for x in body.entries],
+    )
+
+
+@router.get("/branches/{branch_id}/sales")
+def sales_report(
+    branch_id: uuid.UUID, period: s.PeriodQuery, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.sales_report(session, actor, branch_id, period)
+
+
+@router.get("/branches/{branch_id}/expenses")
+def list_expenses(
+    branch_id: uuid.UUID, period: s.PeriodQuery, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.list_expenses(session, actor, branch_id, period)
+
+
+@router.post("/branches/{branch_id}/expenses", status_code=201)
+def add_expense(
+    branch_id: uuid.UUID, body: s.ExpenseIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    e = erp.add_expense(
+        session,
+        actor,
+        branch_id,
+        day=body.date,
+        category=body.category,
+        amount=body.amount,
+        note=body.note,
+    )
+    return {"id": e.id}
+
+
+@router.delete("/expenses/{expense_id}", status_code=204)
+def delete_expense(expense_id: uuid.UUID, actor: ActorDep, session: SessionDep) -> None:
+    erp.delete_expense(session, actor, expense_id)
+
+
+@router.get("/branches/{branch_id}/staff")
+def staff_month(
+    branch_id: uuid.UUID, period: s.PeriodQuery, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.staff_month(session, actor, branch_id, period)
+
+
+@router.post("/branches/{branch_id}/employees", status_code=201)
+def create_employee(
+    branch_id: uuid.UUID, body: s.EmployeeIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    e = erp.save_employee(session, actor, branch_id, None, body.model_dump(exclude_unset=True))
+    return {"id": e.id}
+
+
+@router.patch("/employees/{employee_id}")
+def update_employee(
+    employee_id: uuid.UUID, body: s.EmployeeIn, actor: ActorDep, session: SessionDep
+) -> Any:
+    e = erp.save_employee(session, actor, None, employee_id, body.model_dump(exclude_unset=True))
+    return {"id": e.id}
+
+
+@router.post("/employees/{employee_id}/shifts", status_code=201)
+def add_shift(employee_id: uuid.UUID, body: s.ShiftIn, actor: ActorDep, session: SessionDep) -> Any:
+    sh = erp.add_shift(
+        session,
+        actor,
+        employee_id,
+        day=body.date,
+        start=body.start,
+        end=body.end,
+        hours=body.hours,
+        note=body.note,
+    )
+    return {"id": sh.id, "hours": sh.hours}
+
+
+@router.delete("/shifts/{shift_id}", status_code=204)
+def delete_shift(shift_id: int, actor: ActorDep, session: SessionDep) -> None:
+    erp.delete_shift(session, actor, shift_id)
+
+
+@router.get("/branches/{branch_id}/profit-loss")
+def profit_loss(
+    branch_id: uuid.UUID, period: s.PeriodQuery, actor: ActorDep, session: SessionDep
+) -> Any:
+    return erp.profit_loss(session, actor, branch_id, period)

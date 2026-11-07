@@ -249,3 +249,157 @@ class MonthlySale(Base):
     count_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("monthly_counts.id"), primary_key=True)
     product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("menu_products.id"), primary_key=True)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+
+
+# --- purchasing ------------------------------------------------------------------------------
+
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+    __table_args__ = (UniqueConstraint("tenant_id", "name"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(50))
+    tax_no: Mapped[str | None] = mapped_column(String(30))
+    note: Mapped[str | None] = mapped_column(String(500))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class PurchaseReceipt(Base):
+    """A delivery (irsaliye / fatura). Its quantities are added to the month's 'Gelen'."""
+
+    __tablename__ = "purchase_receipts"
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    supplier_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("suppliers.id"))
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    document_no: Mapped[str | None] = mapped_column(String(60))
+    note: Mapped[str | None] = mapped_column(String(500))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = _now()
+
+
+class PurchaseReceiptLine(Base):
+    __tablename__ = "purchase_receipt_lines"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_prl_qty"),
+        CheckConstraint("unit_price IS NULL OR unit_price >= 0", name="ck_prl_price"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    receipt_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("purchase_receipts.id"), nullable=False, index=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("count_items.id"), nullable=False)
+    # In the unit the item is counted in.
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
+
+
+# --- sales -----------------------------------------------------------------------------------
+
+
+class DailySale(Base):
+    """Menu products sold on one day; the month's totals feed the count sheet."""
+
+    __tablename__ = "daily_sales"
+    __table_args__ = (
+        UniqueConstraint("branch_id", "date", "product_id"),
+        CheckConstraint("quantity >= 0", name="ck_daily_sale_qty"),
+        CheckConstraint("unit_price IS NULL OR unit_price >= 0", name="ck_daily_sale_price"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("menu_products.id"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    # Sales price per piece that day (menu price when entered); revenue = quantity × price.
+    unit_price: Mapped[Decimal | None] = mapped_column(MONEY)
+
+
+# --- expenses --------------------------------------------------------------------------------
+
+EXPENSE_CATEGORIES = (
+    "kira",
+    "elektrik",
+    "su",
+    "dogalgaz",
+    "internet_telefon",
+    "personel_diger",
+    "bakim_onarim",
+    "reklam",
+    "komisyon",
+    "vergi_harc",
+    "diger",
+)
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('" + "','".join(EXPENSE_CATEGORIES) + "')", name="ck_expense_category"
+        ),
+        CheckConstraint("amount > 0", name="ck_expense_amount"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = _now()
+
+
+# --- staff -----------------------------------------------------------------------------------
+
+
+class Employee(Base):
+    __tablename__ = "employees"
+    __table_args__ = (
+        CheckConstraint("pay_type IN ('hourly','monthly')", name="ck_employee_pay_type"),
+        CheckConstraint("wage >= 0", name="ck_employee_wage"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("branches.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(100))
+    phone: Mapped[str | None] = mapped_column(String(50))
+    # hourly: wage per hour worked; monthly: gross monthly cost to the business
+    pay_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    wage: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
+    start_date: Mapped[date | None] = mapped_column(Date)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = _now()
+
+
+class Shift(Base):
+    __tablename__ = "shifts"
+    __table_args__ = (CheckConstraint("hours >= 0 AND hours <= 24", name="ck_shift_hours"),)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    employee_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("employees.id"), nullable=False, index=True
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    start: Mapped[str | None] = mapped_column(String(5))  # "09:00"
+    end: Mapped[str | None] = mapped_column(String(5))
+    # Hours actually worked (defaults to end - start); used for pay and labour cost.
+    hours: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(200))

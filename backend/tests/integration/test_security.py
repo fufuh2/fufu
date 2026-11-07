@@ -161,7 +161,7 @@ def test_errors_do_not_leak_internals(client, session: Session) -> None:
 
 def test_removed_modules_are_gone(client, session: Session) -> None:
     api = new_tenant(session, client)
-    for path in ("/items", "/products", "/suppliers", "/checklist-templates"):
+    for path in ("/items", "/products", "/checklist-templates"):
         assert api.get(path).status_code == 404, path
 
 
