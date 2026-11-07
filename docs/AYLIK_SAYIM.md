@@ -15,7 +15,7 @@ Adres: https://opsx-api.onrender.com/ui/ → giriş → **Panel** (açılış sa
 | Kullanıcılar | (İşletme sahibi) kullanıcı ekleme, rol ve şube atama, pasife alma, parola sıfırlama |
 | Şubeler | (İşletme sahibi) şube ekleme, ad değiştirme, pasife alma |
 | Kayıt Geçmişi | Kim, ne zaman, ne yaptı (sayım kaydı, ay kapatma, fiyat değişikliği, giriş…); değiştirilemez |
-| Hesabım | Bilgiler ve parola değiştirme |
+| Hesabım | Bilgiler, parola değiştirme; işletme sahibi için **Yedek indir / Yedekten geri yükle** |
 
 ## Hesap
 | Sütun | Anlamı |
@@ -74,6 +74,20 @@ Shogun'un menü metninde tavuk yok; gerekiyorsa reçeteye elle ekleyin.
 Kaydedilmemiş değişiklik varken başka sayfaya, aya veya şubeye geçerken uyarı çıkar.
 Hata fark edilirse **Yeniden aç** (neden zorunlu, kayda geçer). Sonraki ay kapatıldıysa önce o açılmalıdır.
 
+## Yedekleme
+**Hesabım → Yedek indir** tüm işletmeyi tek bir `.json` dosyasına yazar: şubeler, kullanıcılar (parolalar şifreli),
+ürünler, fiyatlar, paket içerikleri, reçeteler, her ayın sayımı ve satışları, kayıt geçmişi. Haftada bir ve her ay
+kapanışında alın, güvenli bir yerde saklayın (dosya hassas bilgi içerir). 7 günden eski yedekte Panel uyarır.
+
+Veritabanı değişirse (ör. ücretsiz veritabanının süresi dolarsa): yeni veritabanında ilk işletme sahibi oluşturulur,
+giriş yapılır, **Hesabım → Yedekten geri yükle** ile dosya seçilir. Geri yükleme yalnızca şube ve ürünü olmayan boş bir
+sisteme yapılır ve ya tamamen olur ya hiç olmaz. Aynı e-postalı sahip hesabı korunur; diğer kullanıcılar eski
+parolalarıyla girer.
+
+## Aynı anda düzenleme
+İki kişi aynı ayı açtıysa ve biri kaydettiyse, diğerinin kaydı reddedilir ("başka biri tarafından kaydedildi") ve
+girdikleri ekranda kalır; sayfa yenilenip tekrar girilir. Böylece kimse diğerinin girdiğini fark etmeden silmez.
+
 ## Roller
 | Rol | Yetki |
 |---|---|
@@ -86,7 +100,6 @@ Hata fark edilirse **Yeniden aç** (neden zorunlu, kayda geçer). Sonraki ay kap
 - Gelen miktarlar ve menü satış adetleri elle girilir; POS veya fatura entegrasyonu yok.
 - Reçete bir varsayımdır: gerçek porsiyon farkı "eksik/fazla" olarak görünür (amaç da budur).
 - Zayinin nedeni tutulmaz.
-- Aynı ayı iki kişi aynı anda düzenlerse son kaydeden kazanır.
 - Excel'den sayım yükleme yok.
 - Sayımlarda kullanılmış bir ürünün birimi değiştirilemez (eski miktarlar yanlış okunurdu); yeni birimle ayrı ürün ekleyin.
 - Excel'deki satır formülleri düzenlemeyi takip eder; alttaki özet, dosyanın oluşturulduğu andaki değerlerdir.

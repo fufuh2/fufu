@@ -156,6 +156,8 @@ class MonthlySaveIn(Strict):
     note: Annotated[str, Field(max_length=1000)] | None = None
     lines: Annotated[list[CountLineIn], Field(max_length=2000)] = []
     sales: Annotated[list["SaleIn"], Field(max_length=2000)] = []
+    # The sheet version the edits were made on; omit to save without the check.
+    base_version: Annotated[int, Field(ge=0)] | None = None
 
 
 class SaleIn(Strict):

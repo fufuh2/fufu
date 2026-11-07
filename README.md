@@ -75,4 +75,5 @@ Tarayıcı testleri (`tests/ui`) Playwright + Chromium ister. Tarayıcı yoksa *
 | POST | `/branches/{id}/monthly-counts/{YYYY-MM}/close` · `/reopen` | `count.close` |
 | GET | `/branches/{id}/monthly-counts/{YYYY-MM}/export.xlsx` | `count.read` |
 | GET · POST · PATCH · PUT | `/menu-products` · `/menu-products/{id}` · `/menu-products/{id}/recipe` | `count.read` · `item.manage` |
+| GET · POST | `/backup` (JSON yedek) · `/restore` (boş işletmeye geri yükleme) | `user.manage` |
 | GET | `/branches/{id}/dashboard?period=` · `/branches/{id}/count-items/{item}/history` · `/monthly-counts/overview?period=` | `count.read` |

@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Body, Query, Response
 
 from app.api import schemas as s
 from app.api.deps import ActorDep, SessionDep
@@ -9,7 +9,7 @@ from app.config import load_settings
 from app.domain.permissions import ROLE_LABELS, ROLE_PERMISSIONS
 from app.models import User
 from app.security import issue_token
-from app.services import admin, menu, monthly, monthly_export, monthly_reports
+from app.services import admin, backup, menu, monthly, monthly_export, monthly_reports
 from app.services.scope import get_branch
 
 router = APIRouter(prefix="/api/v1")
@@ -151,6 +151,28 @@ def list_menu_products(actor: ActorDep, session: SessionDep) -> Any:
     return menu.list_products(session, actor)
 
 
+@router.get("/backup")
+def download_backup(actor: ActorDep, session: SessionDep) -> Response:
+    """The whole business as one JSON file (owner only)."""
+    import json
+
+    data = backup.export(session, actor)
+    stamp = data["created_at"][:10]
+    return Response(
+        content=json.dumps(data, ensure_ascii=False),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="sayim-yedek-{stamp}.json"'},
+    )
+
+
+@router.post("/restore")
+def restore_backup(
+    actor: ActorDep, session: SessionDep, data: Annotated[dict[str, Any], Body()]
+) -> Any:
+    """Restores a backup into an empty business (a fresh database after the first login)."""
+    return backup.restore(session, actor, data)
+
+
 @router.get("/setup-status")
 def setup_status(actor: ActorDep, session: SessionDep) -> Any:
     """Missing prices, conversions and recipes, for the panel's to-do card."""
@@ -265,8 +287,9 @@ def save_monthly_count(
         branch_id,
         period,
         [monthly.LineUpdate(**x.model_dump()) for x in body.lines],
-        body.model_dump(exclude_unset=True, exclude={"lines", "sales"}),
+        body.model_dump(exclude_unset=True, exclude={"lines", "sales", "base_version"}),
         [(x.product_id, x.quantity) for x in body.sales],
+        body.base_version,
     )
     return monthly.sheet(session, actor, count)
 

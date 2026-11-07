@@ -346,6 +346,7 @@ def save_lines(
     updates: list[LineUpdate],
     header: dict[str, Any],
     sales: list[tuple[uuid.UUID, Decimal]] | None = None,
+    base_version: int | None = None,
 ) -> MonthlyCount:
     actor.require(Perm.COUNT_EDIT)
     get_active_branch(session, actor, branch_id)
@@ -354,6 +355,12 @@ def save_lines(
         raise NotFound("bu ay için sayım açılmamış")
     if count.status != "draft":
         raise Conflict("bu ayın sayımı kapatılmış; değişiklik için önce yeniden açılmalı")
+    if base_version is not None and base_version != count.version:
+        raise Conflict(
+            "bu ay siz açtıktan sonra başka biri tarafından kaydedildi; üzerine yazmamak için "
+            "kaydedilmedi. Girdiğiniz değerleri not alın, sayfayı yenileyip tekrar girin."
+        )
+    count.version += 1
     lines = {
         line.item_id: line
         for line in session.scalars(
@@ -470,6 +477,7 @@ def close_month(session: Session, actor: Actor, branch_id: uuid.UUID, period: st
     for line in lines:
         line.unit_price = prices.get(line.item_id)
     count.status = "closed"
+    count.version += 1
     count.closed_by = actor.user_id
     count.closed_at = datetime.now(UTC)
     audit.record(
@@ -507,6 +515,7 @@ def reopen_month(
     if later_closed:
         raise Conflict("sonraki aylardan biri kapatılmış; önce onu yeniden açın")
     count.status = "draft"
+    count.version += 1
     count.closed_by = None
     count.closed_at = None
     audit.record(
@@ -629,6 +638,7 @@ def sheet(session: Session, actor: Actor, count: MonthlyCount) -> dict[str, Any]
         "recipe_warnings": warnings,
         "period": count.period.strftime("%Y-%m"),
         "status": count.status,
+        "version": count.version,
         "counted_by_name": count.counted_by_name,
         "count_date": count.count_date,
         "note": count.note,

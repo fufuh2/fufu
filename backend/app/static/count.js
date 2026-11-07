@@ -182,7 +182,7 @@ function drawSheet(sheet) {
   filter.addEventListener("change", applyFilter);
 
   async function doSave() {
-    const body = { ...dirty.header, lines: [...dirty.lines.values()],
+    const body = { ...dirty.header, base_version: sheet.version, lines: [...dirty.lines.values()],
       sales: [...dirty.sales].map(([product_id, quantity]) => ({ product_id, quantity })) };
     saveBtn.disabled = true;
     // Kayıt sürerken yazılan değer kaybolmasın: alanlar kayıt bitene kadar kilitlenir.

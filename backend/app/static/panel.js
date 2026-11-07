@@ -41,6 +41,10 @@ function todoCard(st, d) {
   if (st.products_without_recipe.length) todo.push([`${st.products_without_recipe.length} menü ürününün reçetesi yok (${list(st.products_without_recipe)}).`, go("#/receteler", "Reçete gir")]);
   if (st.products_without_price.length) todo.push([`${st.products_without_price.length} menü ürününün satış fiyatı yok (${list(st.products_without_price)}).`, go("#/receteler", "Fiyat gir")]);
   if (st.products && d.current && d.current.status === "draft" && !d.current.sales_entered) todo.push(["Bu ayın menü satışları girilmedi; soslar ve malzemeler satıştan düşülmüyor.", go("#/sayim", "Satışları gir")]);
+  if (can("user.manage")) {
+    const days = st.last_backup_at ? Math.floor((Date.now() - new Date(st.last_backup_at)) / 86400000) : null;
+    if (days === null || days >= 7) todo.unshift([days === null ? "Hiç yedek alınmadı. Veritabanı silinirse tüm sayımlar kaybolur." : `Son yedek ${days} gün önce alındı.`, go("#/hesap", "Yedek indir")]);
+  }
   const other = st.items_without_price.length - st.recipe_items_without_price.length;
   if (other > 0) todo.push([`${other} üründe birim fiyat yok; bunların farkı TL olarak hesaplanmaz.`, go("#/urunler", "Ürün Listesi")]);
   if (!todo.length) return el("section", { class: "card todo ok-box" }, el("strong", {}, "✓ Kurulum tamam."), " Fiyatlar, paket içerikleri ve reçeteler eksiksiz.");

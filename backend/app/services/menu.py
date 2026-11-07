@@ -14,7 +14,14 @@ from sqlalchemy.orm import Session
 from app.domain.monthly import Q3, to_item_units
 from app.domain.permissions import Perm
 from app.errors import Conflict, Invalid, NotFound
-from app.models import COUNT_UNITS, CountItem, MenuProduct, MonthlySale, RecipeLine
+from app.models import (
+    COUNT_UNITS,
+    AuditEvent,
+    CountItem,
+    MenuProduct,
+    MonthlySale,
+    RecipeLine,
+)
 from app.security import Actor
 from app.services import audit
 
@@ -411,4 +418,9 @@ def setup_status(session: Session, actor: Actor) -> dict[str, Any]:
         "products": len(active),
         "products_without_recipe": [p["name"] for p in active if not p["recipe"]],
         "products_without_price": [p["name"] for p in active if p["price"] is None],
+        "last_backup_at": session.scalar(
+            select(func.max(AuditEvent.at)).where(
+                AuditEvent.tenant_id == actor.tenant_id, AuditEvent.action == "backup.export"
+            )
+        ),
     }

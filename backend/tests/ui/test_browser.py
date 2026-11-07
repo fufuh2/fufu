@@ -434,3 +434,29 @@ def test_supplier_data_and_food_cost_through_ui(page, client, session: Session) 
     sync_api.expect(summary).to_contain_text("217,73")
     sync_api.expect(page.get_by_label("YOUKI satış fiyatı")).to_have_value("610")
     assert page.errors == []
+
+
+def test_backup_download_and_todo_through_ui(page, client, session: Session, tmp_path) -> None:
+    import json
+
+    api = new_tenant(session, client)
+    setup_branch(api)
+    _login(page, _owner_email(session))
+    sync_api.expect(page.locator(".todo")).to_contain_text("Hiç yedek alınmadı")
+    _nav(page, "Hesabım")
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="Yedek indir").click()
+    path = tmp_path / "yedek.json"
+    dl.value.save_as(path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["format"] == "taffburger-sayim-yedek" and len(data["tables"]["count_items"]) == 98
+    _nav(page, "Panel")
+    sync_api.expect(page.get_by_role("heading", name=HOME)).to_be_visible()
+    sync_api.expect(page.locator("main")).not_to_contain_text("Hiç yedek alınmadı")
+    # restoring into a business that already has products is refused with a clear message
+    _nav(page, "Hesabım")
+    page.get_by_label("Yedek dosyası").set_input_files(str(path))
+    page.on("dialog", lambda d: d.accept())
+    page.get_by_role("button", name="Yedekten geri yükle").click()
+    sync_api.expect(page.locator("#msg")).to_contain_text("yalnızca boş bir sisteme")
+    assert [e for e in page.errors if "409" not in e] == []

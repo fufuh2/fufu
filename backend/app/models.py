@@ -161,6 +161,9 @@ class MonthlyCount(Base):
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Bumped on every save, close and reopen; a save naming an older version is refused, so
+    # two people editing the same month cannot silently overwrite each other.
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = _now()
 
 

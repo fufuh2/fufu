@@ -16,7 +16,7 @@ def _fresh_target():  # type: ignore[no-untyped-def]
 
     admin = create_engine(TEST_DB.rsplit("/", 1)[0] + "/postgres", isolation_level="AUTOCOMMIT")
     with admin.connect() as c:
-        c.execute(text("DROP DATABASE IF EXISTS opsx_copy_target_test"))
+        c.execute(text("DROP DATABASE IF EXISTS opsx_copy_target_test WITH (FORCE)"))
         c.execute(text("CREATE DATABASE opsx_copy_target_test"))
     admin.dispose()
     cfg = Config(str(BACKEND / "alembic.ini"))

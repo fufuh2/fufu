@@ -161,9 +161,39 @@ async function renderAccount() {
     el("label", {}, "Yeni parola (tekrar)", again),
     el("button", { type: "submit" }, "Parolayı değiştir"));
   const branches = state.me.branch_ids === null ? "Tüm şubeler" : state.allBranches.filter((b) => state.me.branch_ids.includes(b.id)).map((b) => b.name).join(", ") || "—";
-  main().replaceChildren(pageHead("Hesabım"),
+  const parts = [pageHead("Hesabım"),
     el("div", { class: "grid" }, kpi("E-posta", state.me.email), kpi("Rol", state.me.role_label), kpi("Şubeler", branches)),
-    form);
+    form];
+  if (can("user.manage")) parts.push(backupCard());
+  main().replaceChildren(...parts);
+}
+
+// Yedekleme: tüm işletme tek dosyada; yeni bir veritabanına (ilk girişten sonra) geri yüklenir.
+function backupCard() {
+  const file = el("input", { type: "file", accept: "application/json,.json", "aria-label": "Yedek dosyası" });
+  const result = el("div");
+  const restoreBtn = el("button", { type: "button", class: "secondary", onclick: async () => {
+    const f = file.files && file.files[0];
+    if (!f) { message("Önce yedek dosyasını seçin."); return; }
+    if (!confirm(`${f.name} geri yüklensin mi? Yalnızca boş bir sisteme (yeni veritabanında ilk giriş) yüklenebilir.`)) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch { message("Dosya okunamadı: geçerli bir yedek dosyası değil."); return; }
+    restoreBtn.disabled = true;
+    const r = await api("POST", "/restore", data);
+    restoreBtn.disabled = false;
+    if (!r.ok) { message(r.error); return; }
+    await loadBranches();
+    message("Yedek geri yüklendi.", "info");
+    result.replaceChildren(table([["Tablo"], ["Satır", "num"]], Object.entries(r.data).map(([k, v]) => [[k], [String(v), "num"]])));
+  } }, "Yedekten geri yükle");
+  return el("section", { class: "card" }, el("h2", {}, "Yedekleme"),
+    el("p", { class: "hint" }, "Yedek; şubeleri, kullanıcıları (parolalar şifreli olarak), ürünleri, fiyatları, reçeteleri, tüm ayların sayım ve satışlarını ve kayıt geçmişini tek dosyada tutar. Dosyayı güvenli bir yerde saklayın (e-posta, Google Drive). Haftada bir ve her ay kapanışında yedek alın."),
+    el("p", {}, el("button", { type: "button", onclick: async () => {
+      await download("/backup", `sayim-yedek-${new Date().toISOString().slice(0, 10)}.json`);
+      message("Yedek indirildi.", "info");
+    } }, "Yedek indir")),
+    el("div", { class: "toolbar" }, el("label", { class: "grow" }, "Yeni veritabanına geri yükleme", file), restoreBtn),
+    result);
 }
 
 routes["#/kullanicilar"] = renderUsers;
