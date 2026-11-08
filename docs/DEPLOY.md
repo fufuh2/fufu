@@ -4,7 +4,7 @@
 | Bileşen | Durum |
 |---|---|
 | GitLab | `gitlab.com/taffburger9/fufu` (private), `main` korumalı, merge yalnızca başarılı pipeline ile. **CI pipeline job çalıştırmadan düşüyor**: hesapta shared runner doğrulaması gerekiyor olabilir (GitLab → Settings → CI/CD veya hesap doğrulama). Aynı kontroller GitHub Actions'ta yeşil. |
-| Render DB | `opsx-db`, PostgreSQL 16, Frankfurt, **free: 2026-11-16'da sona eriyor** (Render API'nin döndürdüğü tarih). |
+| Veritabanı | **Neon** (ücretsiz plan, Frankfurt `eu-central-1`, doğrudan bağlantı, pooler değil). 2026-11-08'de `copy-from-if-empty` ile Render DB'den taşındı; eski Render DB (`opsx-db`, 2026-11-16'da sona eriyor) artık kullanılmıyor. |
 | Render web | `opsx-api` → https://opsx-api.onrender.com, free, Frankfurt, sağlık kontrolü `/readyz`, otomatik deploy açık. **Kaynak GitHub** (`fufuh2/fufu`, dal `ccr-5ace6090-44fj25`): Render hesabı GitLab'a bağlı değil, private GitLab reposunu okuyamıyor. |
 | Sırlar | `OPSX_JWT_SECRET` Render'da üretildi; git'te yok. (`OPSX_INTEGRATION_KEY` artık kullanılmıyor; Render'dan silinebilir.) |
 | İlk sahip | Oluşturuldu (işletme: Taffburger, rol: owner). Bootstrap değişkenleri Render'dan silindi ve yeniden deploy edildi. **İlk parolayı Hesabım → Parola değiştir ile hemen değiştir.** |
@@ -14,7 +14,7 @@
 2. Kaynağı GitLab'a çevirmek istersen: Render → Account Settings → Git Providers → GitLab'ı bağla,
    sonra `opsx-api` → Settings → Repository: `gitlab.com/taffburger9/fufu`, dal `main`.
 3. GitLab CI için hesap doğrulamasını (shared runner) tamamla.
-4. Gerçek veri girmeden önce: free DB 2026-11-16'da sona eriyor → ücretli plan + yedek.
+4. Ayda bir yedek indir (Neon ücretsiz planı da tek kopya).
 5. Sohbete yazılan iki token'ı iptal et ve yenile.
 
 Repo deploy için hazır:

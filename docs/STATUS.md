@@ -42,5 +42,5 @@ Rolü değişen kullanıcıların açık oturumları kapanır. POS servis hesapl
 - Excel'den sayım yükleme yok.
 - Şifre sıfırlama e-postası yok; işletme sahibi Kullanıcılar sayfasından yeni parola belirler.
 - MFA yok. Token süresi 30 dk.
-- Ücretsiz Render veritabanı 2026-11-16'da sona eriyor (bkz. `DEPLOY.md`).
+- Veritabanı Neon ücretsiz planında (bkz. `DEPLOY.md`); sınırlar Neon'a bağlı, düzenli yedek gerekir.
 - Uyandırma görevi (GitHub Actions, 10 dk) GitHub tarafından seyrekleştiriliyor: 31 Ekim–1 Kasım arası 24 saatte yalnızca 5 kez çalıştı. Uyku ekranını güvenilir biçimde önlemiyor.
